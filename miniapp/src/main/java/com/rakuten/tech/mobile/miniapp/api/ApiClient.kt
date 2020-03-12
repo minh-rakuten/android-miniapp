@@ -3,8 +3,10 @@ package com.rakuten.tech.mobile.miniapp.api
 import androidx.annotation.VisibleForTesting
 import com.rakuten.tech.mobile.miniapp.MiniAppInfo
 import com.rakuten.tech.mobile.miniapp.MiniAppSdkException
+import com.rakuten.tech.mobile.miniapp.sdkExceptionForInternalServerError
 import okhttp3.ResponseBody
 import retrofit2.Call
+import retrofit2.Converter
 import retrofit2.HttpException
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -12,34 +14,46 @@ import retrofit2.http.Url
 
 internal class ApiClient @VisibleForTesting constructor(
     retrofit: Retrofit,
-    private val hostAppVersion: String,
-    private val requestExecutor: RetrofitRequestExecutor = RetrofitRequestExecutor(retrofit),
-    private val listingApi: ListingApi = retrofit.create(ListingApi::class.java),
+    private val hostAppVersionId: String,
+    private val hostAppId: String,
+    private val appInfoApi: AppInfoApi = retrofit.create(AppInfoApi::class.java),
+    private val downloadApi: DownloadApi = retrofit.create(DownloadApi::class.java),
     private val manifestApi: ManifestApi = retrofit.create(ManifestApi::class.java),
-    private val downloadApi: DownloadApi = retrofit.create(DownloadApi::class.java)
+    private val requestExecutor: RetrofitRequestExecutor = RetrofitRequestExecutor(retrofit)
 ) {
 
     constructor(
         baseUrl: String,
         rasAppId: String,
         subscriptionKey: String,
-        hostAppVersion: String
+        hostAppVersionId: String
     ) : this(
         retrofit = createRetrofitClient(
             baseUrl = baseUrl,
             rasAppId = rasAppId,
             subscriptionKey = subscriptionKey
         ),
-        hostAppVersion = hostAppVersion
+        hostAppVersionId = hostAppVersionId,
+        hostAppId = rasAppId
     )
 
     suspend fun list(): List<MiniAppInfo> {
-        val request = listingApi.list(hostAppVersion = hostAppVersion)
+        val request = appInfoApi.list(hostAppId, hostAppVersionId)
         return requestExecutor.executeRequest(request)
     }
 
+    suspend fun fetchInfo(appId: String): MiniAppInfo {
+        val request = appInfoApi.fetchInfo(hostAppId, hostAppVersionId, appId)
+        return requestExecutor.executeRequest(request).first()
+    }
+
     suspend fun fetchFileList(miniAppId: String, versionId: String): ManifestEntity {
-        val request = manifestApi.fetchFileListFromManifest(miniAppId, versionId)
+        val request = manifestApi.fetchFileListFromManifest(
+            hostAppId = hostAppId,
+            miniAppId = miniAppId,
+            versionId = versionId,
+            hostAppVersionId = hostAppVersionId
+        )
         return requestExecutor.executeRequest(request)
     }
 
@@ -50,48 +64,79 @@ internal class ApiClient @VisibleForTesting constructor(
 }
 
 internal class RetrofitRequestExecutor(
-    retrofit: Retrofit
+    private val retrofit: Retrofit
 ) {
 
-    private val errorConvertor = retrofit.responseBodyConverter<ErrorResponse>(
-        ErrorResponse::class.java,
-        arrayOfNulls<Annotation>(0)
-    )
+    private inline fun <reified T : ErrorResponse> createErrorConvertor(retrofit: Retrofit) =
+        retrofit.responseBodyConverter<T>(T::class.java, arrayOfNulls<Annotation>(0))
 
-    @Suppress("TooGenericExceptionCaught")
-    suspend fun <T> executeRequest(call: Call<T>): T {
-        try {
-            val response = call.execute()
-            if (response.isSuccessful) {
-                return response.body()!! // Body can't be null if request was successful
-            } else {
-                val error =
-                    response.errorBody()!! // Error body can't be null if request wasn't successful
-                throw sdkExceptionFromHttpException(response, error)
+    @Suppress("TooGenericExceptionCaught", "ThrowsCount")
+    suspend fun <T> executeRequest(call: Call<T>): T = try {
+        val response = call.execute()
+        when {
+            response.isSuccessful -> {
+                // Body shouldn't be null if request was successful
+                response.body() ?: throw sdkExceptionForInternalServerError()
             }
-        } catch (error: Exception) { // hotfix to catch the case when response is not Type T
-            throw MiniAppSdkException(error)
+            else -> throw exceptionForHttpError<T>(response)
+        }
+    } catch (error: Exception) { // when response is not Type T or malformed JSON is received
+        throw MiniAppSdkException(error)
+    }
+
+    @Throws(MiniAppSdkException::class)
+    @Suppress("MagicNumber", "ThrowsCount")
+    private fun <T> exceptionForHttpError(response: Response<T>): MiniAppSdkException {
+        // Error body shouldn't be null if request wasn't successful
+        val errorData = response.errorBody() ?: throw sdkExceptionForInternalServerError()
+        when (response.code()) {
+            401, 403 -> throw MiniAppSdkException(
+                convertAuthErrorToMsg(
+                    response, errorData, createErrorConvertor(retrofit)
+                )
+            )
+            else -> throw MiniAppSdkException(
+                convertStandardHttpErrorToMsg(
+                    response, errorData, createErrorConvertor(retrofit)
+                )
+            )
         }
     }
 
-    private fun sdkExceptionFromHttpException(
+    private fun convertAuthErrorToMsg(
         response: Response<in Nothing>,
-        error: ResponseBody
-    ): MiniAppSdkException {
-        return MiniAppSdkException(
-            MiniAppHttpException(
-                response = response,
-                errorMessage = errorConvertor.convert(error)?.message
-                    ?: "No error message provided by server."
-            ).errorMessage
-        )
-    }
+        error: ResponseBody,
+        converter: Converter<ResponseBody, AuthErrorResponse>
+    ) = errorMsgFromHttpException(response, converter.convert(error)?.message)
+
+    private fun convertStandardHttpErrorToMsg(
+        response: Response<in Nothing>,
+        error: ResponseBody,
+        converter: Converter<ResponseBody, HttpErrorResponse>
+    ) = errorMsgFromHttpException(response, converter.convert(error)?.message)
+
+    private fun errorMsgFromHttpException(
+        response: Response<in Nothing>,
+        error: String?
+    ) = MiniAppHttpException(
+        response = response,
+        errorMessage = error ?: "No error message provided by server."
+    ).message()
 }
 
-internal data class ErrorResponse(
+internal data class HttpErrorResponse(
     val code: Int,
+    override val message: String
+) : ErrorResponse
+
+internal data class AuthErrorResponse(
+    val code: String,
+    override val message: String
+) : ErrorResponse
+
+internal interface ErrorResponse {
     val message: String
-)
+}
 
 /**
  * Exception thrown when the Mini App API returns an error response.
