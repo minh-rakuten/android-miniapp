@@ -14,9 +14,11 @@ Mini App (Webapp) should including the CORS policy in headers itself.
 Online tool: https://www.test-cors.org/
 
 https://petstore.swagger.io/v2/swagger.json
+
 XHR success with any cases.
 
 https://www.rakuten.co.jp/
+
 XHR failed for web browser. However, in our webview implementation,
 
 1/ Load from file resource path:
@@ -28,6 +30,7 @@ Even enabling `allowUniversalAccessFromFileURLs` still not solves this problem c
 ## How to test
 
 Put the app data from `testapp/.../assets` into emulator for testing.
+
 Run request from Online tool then compared with the running from the sample app to verify if 
 Webview from SDK supports CORS. Turn on/off flag to `allowUniversalAccessFromFileURLs` in `RealMiniAppDisplay`
 to see the difference.
