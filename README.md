@@ -7,7 +7,7 @@ However, the solution we have implemented for data separation of the Mini Apps (
 
 The investigation is still ongoing.
 It seems that the only solution when loading the custom domain is that
-Mini App (Webapp) should including the CORS policy in headers itself.
+Mini App (Webapp) should include the CORS policy in the headers itself.
 
 ## Test resources
 
