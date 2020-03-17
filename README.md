@@ -1,25 +1,33 @@
-[![CircleCI](https://circleci.com/gh/rakutentech/android-miniapp.svg?style=svg)](https://circleci.com/gh/rakutentech/android-miniapp)
-[![codecov](https://codecov.io/gh/rakutentech/android-miniapp/branch/master/graph/badge.svg)](https://codecov.io/gh/rakutentech/android-miniapp)
+# MiniApp SDK Webview CORS Investigation for Android
 
-# MiniApp SDK for Android
+Mini Apps will need to access external APIs using JavaScript such as `XMLHttpRequest` and `fetch`.
+However, the solution we have implemented for data separation of the Mini Apps (loading via custom domain) will prevent them from being able to access most APIs due to CORS.
 
-Provides a set of tools and capabilities to show mini app in Android Applications. The SDK offers features like fetching, caching and displaying of mini app. 
-For instructions on implementing in an android application, see the [User Guide](miniapp/USERGUIDE.md).
+## Conclusion
 
-## How to build
+The investigation is still ongoing.
+It looks the only solution when loading the custom domain is that
+Mini App (Webapp) should including the CORS policy in headers itself.
 
-This repository uses submodules for some configuration, so they must be initialized first.
+## Test resources
 
-```bash
-$ git submodule init
-$ git submodule update
-$ ./gradlew assemble
-```
+Online tool: https://www.test-cors.org/
 
-## How to test the Sample app
+https://petstore.swagger.io/v2/swagger.json
+XHR success with any cases.
 
-We are still working on this, please watch this space for future updates.
+https://www.rakuten.co.jp/
+XHR failed for web browser. However, in our webview implementation,
 
-## Contributing
+1/ Load from file resource path:
+when we enable `allowUniversalAccessFromFileURLs` true, XHR reach success. Otherwise, fails.
 
-We are still working on this, please watch this space for future updates.
+2/ Load from custom domain:
+Even enabling `allowUniversalAccessFromFileURLs` still not solves this problem case.
+
+## How to test
+
+Put the app data from `testapp/.../assets` into emulator for testing.
+Run request from Online tool then compared with the running from the sample app to verify if 
+Webview from SDK supports CORS. Turn on/off flag to `allowUniversalAccessFromFileURLs` in `RealMiniAppDisplay`
+to see the difference.

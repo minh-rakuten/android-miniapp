@@ -20,7 +20,7 @@ private const val ASSET_DOMAIN_SUFFIX = "miniapps.androidplatform.net"
 private const val SUB_DOMAIN_PATH = "miniapp"
 
 @SuppressLint("SetJavaScriptEnabled")
-internal class RealMiniAppDisplay(
+class RealMiniAppDisplay(
     context: Context,
     val basePath: String,
     val appId: String
@@ -34,11 +34,12 @@ internal class RealMiniAppDisplay(
         )
 
         settings.javaScriptEnabled = true
-        settings.allowUniversalAccessFromFileURLs = true
+//        settings.allowUniversalAccessFromFileURLs = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = true
         webViewClient = MiniAppWebViewClient(getWebViewAssetLoader())
-        loadUrl(getLoadUrl())
+//        loadUrl(getLoadUrl())
+        loadUrl("file:///android_asset/cors-test/app/index.html")
     }
 
     override fun setWebViewClient(client: WebViewClient?) {
