@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+    <script type="module" src="miniapp.js"></script>
+
+    <title>Hello</title>
+
+    <style>
+      body, html {
+        height: 100%;
+        text-align: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: #F89821;
+        background-color: #ffffff;
+        padding: 20px;
+        margin-bottom: 100px;
+      }
+    </style>
+
+  </head>
+  <body>
+      <input type="button" value="Get Unique Id" onClick="showUniqueId()" />
+      <br/><br/>
+      <p id="version"></p>
+
+      <script type="module">
+          import { MiniApp } from './miniapp.js';
+
+          document.getElementById('version').innerHTML = new MiniApp().getUniqueId();
+      </script>
+  </body>
+</html>

@@ -34,12 +34,11 @@ class RealMiniAppDisplay(
         )
 
         settings.javaScriptEnabled = true
-//        settings.allowUniversalAccessFromFileURLs = true
+        settings.allowUniversalAccessFromFileURLs = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = true
         webViewClient = MiniAppWebViewClient(getWebViewAssetLoader())
-//        loadUrl(getLoadUrl())
-        loadUrl("file:///android_asset/cors-test/app/index.html")
+        loadUrl(getLoadUrl())
     }
 
     override fun setWebViewClient(client: WebViewClient?) {
@@ -72,8 +71,10 @@ class RealMiniAppDisplay(
 @VisibleForTesting
 internal class MiniAppWebViewClient(private val loader: WebViewAssetLoader) : WebViewClient() {
 
-    override fun shouldInterceptRequest(
-        view: WebView,
-        request: WebResourceRequest
-    ): WebResourceResponse? = loader.shouldInterceptRequest(request.url)
+    override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest): WebResourceResponse? =
+        loader.shouldInterceptRequest(request.url)?.apply {
+            if (request.url.toString().endsWith("js", true)) {
+                this.mimeType = "text/javascript"
+            }
+        }
 }
