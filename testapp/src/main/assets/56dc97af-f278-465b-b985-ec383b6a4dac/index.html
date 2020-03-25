@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-    <script type="module" src="miniapp.js"></script>
+  <script type="module" src="miniapp.js"></script>
 
-    <title>Hello</title>
+  <title>Hello</title>
 
-    <style>
+  <style>
       body, html {
         height: 100%;
         text-align: center;
@@ -29,8 +29,11 @@
 <br/><br/>
 <p id="version"></p>
 
-<script type="text/javascript">
-          document.getElementById('version').innerHTML = window.MiniApp.getUniqueId();
+<script type="module">
+          import { MiniApp } from './miniapp.js';
+          let instance = new MiniApp.MiniAppImpl();
+
+          document.getElementById('version').innerHTML = instance.getUniqueId();
       </script>
 </body>
 </html>

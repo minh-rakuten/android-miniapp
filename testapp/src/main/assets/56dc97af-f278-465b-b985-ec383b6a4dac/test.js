@@ -1,4 +1,6 @@
+import { MiniApp } from './miniapp.js';
 function showUniqueId() {
-    document.getElementById('version').innerHTML = window.MiniApp.getUniqueId();
+    let instance = new MiniApp.MiniAppImpl();
+    document.getElementById('version').innerHTML = instance.getUniqueId();
 }
 //# sourceMappingURL=test.js.map
