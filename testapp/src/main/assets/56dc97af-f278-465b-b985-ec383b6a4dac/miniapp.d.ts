@@ -1,5 +1,3 @@
-import { OS } from './dataType.js';
-export declare class MiniApp {
-    getOS(): OS;
-    getUniqueId(): string;
+export declare namespace MiniApp {
+    function getUniqueId(): string;
 }

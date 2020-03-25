@@ -1,1 +1,1 @@
-export {};
+declare function showUniqueId(): void;
