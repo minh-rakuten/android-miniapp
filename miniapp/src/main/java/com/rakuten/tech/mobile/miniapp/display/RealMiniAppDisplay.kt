@@ -14,16 +14,18 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.OnLifecycleEvent
 import androidx.webkit.WebViewAssetLoader
 import com.rakuten.tech.mobile.miniapp.MiniAppDisplay
+import com.rakuten.tech.mobile.miniapp.MiniAppMessageInterface
 import java.io.File
 
 private const val ASSET_DOMAIN_SUFFIX = "miniapps.androidplatform.net"
 private const val SUB_DOMAIN_PATH = "miniapp"
 
 @SuppressLint("SetJavaScriptEnabled")
-class RealMiniAppDisplay(
+internal class RealMiniAppDisplay(
     context: Context,
-    val basePath: String,
-    val appId: String
+    private val basePath: String,
+    private val appId: String,
+    private val miniAppMessageInterface: MiniAppMessageInterface
 ) : MiniAppDisplay, WebView(context) {
 
     private val miniAppDomain = "$appId.$ASSET_DOMAIN_SUFFIX"
@@ -33,11 +35,13 @@ class RealMiniAppDisplay(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
         )
 
+        addJavascriptInterface(miniAppMessageInterface, "MiniApp")
         settings.javaScriptEnabled = true
         settings.allowUniversalAccessFromFileURLs = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = true
         webViewClient = MiniAppWebViewClient(getWebViewAssetLoader())
+
         loadUrl(getLoadUrl())
     }
 
