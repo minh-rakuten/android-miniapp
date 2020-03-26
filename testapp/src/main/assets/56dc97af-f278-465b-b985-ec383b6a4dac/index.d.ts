@@ -1,1 +1,0 @@
-export { MiniApp } from './miniapp';
