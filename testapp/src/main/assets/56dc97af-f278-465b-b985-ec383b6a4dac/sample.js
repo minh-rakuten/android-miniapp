@@ -1,4 +1,3 @@
-import { MiniApp } from './miniapp.js';
-var instance = new MiniApp.MiniAppImpl();
-console.log("Unique Id: " + instance.getUniqueId());
+var MiniApp = require('./miniapp');
+console.log("Unique Id: " + MiniApp.getUniqueId());
 //# sourceMappingURL=sample.js.map
