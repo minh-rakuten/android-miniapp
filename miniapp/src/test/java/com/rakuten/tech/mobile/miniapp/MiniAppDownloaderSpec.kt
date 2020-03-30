@@ -11,6 +11,7 @@ import com.rakuten.tech.mobile.miniapp.storage.MiniAppStatus
 import com.rakuten.tech.mobile.miniapp.storage.MiniAppStorage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestCoroutineDispatcher
 import kotlinx.coroutines.test.runBlockingTest
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.amshove.kluent.*
@@ -26,10 +27,11 @@ class MiniAppDownloaderSpec {
     private val storage: MiniAppStorage = mock()
     private val miniAppStatus: MiniAppStatus = mock()
     private lateinit var downloader: MiniAppDownloader
+    private val dispatcher = TestCoroutineDispatcher()
 
     @Before
     fun setup() {
-        downloader = MiniAppDownloader(storage, apiClient, miniAppStatus)
+        downloader = MiniAppDownloader(storage, apiClient, miniAppStatus, dispatcher)
     }
 
     @Test
@@ -122,7 +124,7 @@ class MiniAppDownloaderSpec {
 
     @Test
     fun `should execute old file deletion after downloading new version`() {
-        runBlocking {
+        runBlockingTest {
             When calling miniAppStatus.isVersionDownloaded(
                 TEST_ID_MINIAPP,
                 TEST_ID_MINIAPP_VERSION
