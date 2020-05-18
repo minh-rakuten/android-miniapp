@@ -102,8 +102,3 @@ window.MiniAppBridge = MiniAppBridge;
 if (typeof exports==="object" && typeof module!=="undefined") {
   module.exports = MiniAppBridge;
 }
-
-var iframes = document.querySelectorAll('iframe');
-for (var i = 0; i < iframes.length; i++) {
-    iframes[i].parentNode.removeChild(iframes[i]);
-}

@@ -20,7 +20,14 @@ internal class MiniAppWebViewClient(
     ): WebResourceResponse? {
         if (request.url != null && request.url.toString().startsWith(customScheme)) {
             val interceptUri = request.url.toString().replace(customScheme, customDomain).toUri()
-            return loader.shouldInterceptRequest(interceptUri)
+            val webResourceResponse = loader.shouldInterceptRequest(interceptUri)
+
+            val data = webResourceResponse?.data?.bufferedReader().use {
+                it?.readText()
+            }
+            webResourceResponse?.data = data?.replace("<head>", "<head><meta http-equiv=\"Content-Security-Policy\" content=\"frame-src 'none'\">")?.byteInputStream()
+
+            return webResourceResponse
         }
         return loader.shouldInterceptRequest(request.url)
     }
