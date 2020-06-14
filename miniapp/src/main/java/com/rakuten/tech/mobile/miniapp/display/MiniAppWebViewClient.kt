@@ -34,6 +34,7 @@ internal class MiniAppWebViewClient(
         if (request?.url.toString().contains("oneapp")) {
 //            val intent = Intent(Intent.ACTION_VIEW);
 //            intent.data = Uri.parse(request?.url.toString());
+//            context.startActivity(intent);
 
             val msg = request?.url?.getQueryParameter("message")
             val sendIntent: Intent = Intent().apply {
@@ -44,8 +45,6 @@ internal class MiniAppWebViewClient(
 
             val shareIntent = Intent.createChooser(sendIntent, null)
             context.startActivity(shareIntent)
-
-//            context.startActivity(intent);
             return true
         }
         return super.shouldOverrideUrlLoading(view, request)
