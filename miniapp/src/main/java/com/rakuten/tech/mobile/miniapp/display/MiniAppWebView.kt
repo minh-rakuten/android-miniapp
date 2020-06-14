@@ -37,7 +37,7 @@ internal class MiniAppWebView(
         settings.allowUniversalAccessFromFileURLs = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = true
-        webViewClient = MiniAppWebViewClient(getWebViewAssetLoader(), customDomain, customScheme)
+        webViewClient = MiniAppWebViewClient(context, getWebViewAssetLoader(), customDomain, customScheme)
         webChromeClient = MiniAppWebChromeClient(context)
 
         loadUrl(getLoadUrl())
