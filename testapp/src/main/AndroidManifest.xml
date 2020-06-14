@@ -11,20 +11,46 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="true"
         tools:ignore="GoogleAppIndexingWarning">
-
-        <activity
-            android:name="com.rakuten.tech.mobile.testapp.ui.miniapplist.MiniAppListActivity">
+        <activity android:name="com.rakuten.tech.mobile.testapp.ui.miniapplist.MiniAppListActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name="com.rakuten.tech.mobile.testapp.ui.display.MiniAppDisplayActivity"/>
+
+        <activity android:name="com.rakuten.tech.mobile.testapp.ui.display.CustomSchemeInputActivity">
+            <intent-filter android:label="@string/custom_filter_oneapp_chat">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- Accepts URIs that begin with "oneapp://chat” -->
+                <data
+                    android:host="chat"
+                    android:scheme="oneapp" />
+            </intent-filter>
+            <intent-filter android:label="@string/custom_filter_oneapp_chat_https">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- Accepts URIs that begin with "http://www.oneapp.com/chat” -->
+                <data
+                    android:host="www.oneapp.com"
+                    android:pathPrefix="/chat"
+                    android:scheme="http" />
+                <!-- note that the leading "/" is required for pathPrefix -->
+            </intent-filter>
+        </activity>
+
+        <activity android:name="com.rakuten.tech.mobile.testapp.ui.display.MiniAppDisplayActivity" />
+
         <activity
             android:name="com.rakuten.tech.mobile.testapp.ui.input.MiniAppInputActivity"
-            android:label="@string/action_go_input"/>
+            android:label="@string/action_go_input" />
 
         <meta-data
             android:name="com.rakuten.tech.mobile.miniapp.BaseUrl"

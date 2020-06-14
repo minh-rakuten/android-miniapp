@@ -3,11 +3,8 @@ package com.rakuten.tech.mobile.miniapp.display
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import android.webkit.WebResourceError
+import android.net.Uri
+import android.webkit.*
 import androidx.annotation.VisibleForTesting
 import androidx.webkit.WebViewAssetLoader
 import java.io.BufferedReader
@@ -31,18 +28,27 @@ internal class MiniAppWebViewClient(
     override fun shouldInterceptRequest(
         view: WebView,
         request: WebResourceRequest
-    ): WebResourceResponse? {
-        if (request.url.scheme == "oneapp") {
+    ): WebResourceResponse? = loader.shouldInterceptRequest(request.url)
+
+    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+        if (request?.url.toString().contains("oneapp")) {
+//            val intent = Intent(Intent.ACTION_VIEW);
+//            intent.data = Uri.parse(request?.url.toString());
+
+            val msg = request?.url?.getQueryParameter("message")
             val sendIntent: Intent = Intent().apply {
                 action = Intent.ACTION_SEND
-                putExtra(Intent.EXTRA_TEXT, "This is my text to send.")
+                putExtra(Intent.EXTRA_TEXT, msg)
                 type = "text/plain"
             }
-            context.startActivity(sendIntent)
-            return null
-        }
 
-        return loader.shouldInterceptRequest(request.url)
+            val shareIntent = Intent.createChooser(sendIntent, null)
+            context.startActivity(shareIntent)
+
+//            context.startActivity(intent);
+            return true
+        }
+        return super.shouldOverrideUrlLoading(view, request)
     }
 
     override fun onPageStarted(webView: WebView, url: String?, favicon: Bitmap?) {

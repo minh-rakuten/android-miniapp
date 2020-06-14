@@ -10,4 +10,7 @@
     <string name="lb_app_settings">App Settings</string>
     <string name="action_save">Save</string>
     <string name="tut_setting">This is the first time you launch the MiniApp Demo application on this device. You need to provide your own Host App ID and Subscription Key from &lt;font color="#BF0000">&lt;b>Rakuten&lt;/b>&lt;/font> &lt;b>App Studio&lt;/b></string>
+
+    <string name="custom_filter_oneapp_chat">Share CS</string>
+    <string name="custom_filter_oneapp_chat_https">Share CS HTTP</string>
 </resources>
