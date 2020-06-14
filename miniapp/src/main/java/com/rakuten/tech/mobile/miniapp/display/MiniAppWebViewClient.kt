@@ -2,12 +2,13 @@ package com.rakuten.tech.mobile.miniapp.display
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.net.Uri
-import android.webkit.*
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.WebResourceError
 import androidx.annotation.VisibleForTesting
 import androidx.webkit.WebViewAssetLoader
-import java.io.BufferedReader
 
 internal class MiniAppWebViewClient(
     val context: Context,
@@ -15,15 +16,6 @@ internal class MiniAppWebViewClient(
     private val customDomain: String,
     private val customScheme: String
 ) : WebViewClient() {
-
-    @Suppress("TooGenericExceptionCaught", "SwallowedException")
-    @VisibleForTesting
-    internal val bridgeJs = try {
-        val inputStream = context.assets.open("bridge.js")
-        inputStream.bufferedReader().use(BufferedReader::readText)
-    } catch (e: Exception) {
-        null
-    }
 
     override fun shouldInterceptRequest(
         view: WebView,
@@ -48,11 +40,6 @@ internal class MiniAppWebViewClient(
             return true
         }
         return super.shouldOverrideUrlLoading(view, request)
-    }
-
-    override fun onPageStarted(webView: WebView, url: String?, favicon: Bitmap?) {
-        super.onPageStarted(webView, url, favicon)
-        webView.evaluateJavascript(bridgeJs) {}
     }
 
     override fun onReceivedError(
