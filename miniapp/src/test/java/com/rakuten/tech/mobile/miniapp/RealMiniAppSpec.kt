@@ -6,6 +6,8 @@ import com.nhaarman.mockitokotlin2.verify
 import com.rakuten.tech.mobile.miniapp.api.ApiClient
 import com.rakuten.tech.mobile.miniapp.api.ApiClientRepository
 import com.rakuten.tech.mobile.miniapp.display.Displayer
+import com.rakuten.tech.mobile.miniapp.js.MiniAppMessageBridge
+import com.rakuten.tech.mobile.sdkutils.AppInfo
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.amshove.kluent.When
@@ -13,16 +15,21 @@ import org.amshove.kluent.calling
 import org.amshove.kluent.itReturns
 import org.junit.Before
 import org.junit.Test
+import org.mockito.Mockito
 
 @ExperimentalCoroutinesApi
 class RealMiniAppSpec {
-    private val apiClientRepository: ApiClientRepository = mock()
-    private val miniAppDownloader: MiniAppDownloader = mock()
-    private val displayer: Displayer = mock()
-    private val miniAppInfoFetcher: MiniAppInfoFetcher = mock()
-    private val realMiniApp = RealMiniApp(apiClientRepository, miniAppDownloader, displayer, miniAppInfoFetcher)
-    private val miniAppSdkConfig: MiniAppSdkConfig = mock()
+
     private var apiClient: ApiClient = mock()
+    private val apiClientRepository: ApiClientRepository = mock()
+    private val displayer: Displayer = mock()
+    private val miniAppDownloader: MiniAppDownloader = mock()
+    private val miniAppInfo = MiniAppInfo(TEST_MA_ID, "", "", Version("", TEST_MA_VERSION_ID))
+    private val miniAppInfoFetcher: MiniAppInfoFetcher = mock()
+    private val miniAppSdkConfig: MiniAppSdkConfig = mock()
+    private val realMiniApp =
+        RealMiniApp(apiClientRepository, miniAppDownloader, displayer, miniAppInfoFetcher)
+    private val miniAppMessageBridge: MiniAppMessageBridge = mock()
 
     @Before
     fun setup() {
@@ -41,19 +48,24 @@ class RealMiniAppSpec {
         realMiniApp.fetchInfo("")
     }
 
-    @Test(expected = MiniAppSdkException::class)
-    fun `should throw exception when version id is invalid`() = runBlockingTest {
-        realMiniApp.create(TEST_MA_ID, "")
-    }
+    @Test
+    fun `should invoke from MiniAppDownloader and Displayer when calling create miniapp`() =
+        runBlockingTest {
+            realMiniApp.create(TEST_MA_ID, miniAppMessageBridge)
+
+            val basePath: String = verify(miniAppDownloader, times(1))
+                .getMiniApp(TEST_MA_ID)
+            verify(displayer, times(1)).createMiniAppDisplay(basePath, TEST_MA_ID, miniAppMessageBridge)
+        }
 
     @Test
-    fun `should invoke from MiniAppDownloader and Displayer when calling create miniapp`() = runBlockingTest {
-        realMiniApp.create(TEST_MA_ID, TEST_MA_VERSION_ID)
+    fun `should still be able to download miniapp for deprecated method`() =
+        runBlockingTest {
+            realMiniApp.create(miniAppInfo)
+            realMiniApp.create(miniAppInfo, miniAppMessageBridge)
 
-        val basePath: String = verify(miniAppDownloader, times(1))
-            .getMiniApp(TEST_MA_ID, TEST_MA_VERSION_ID)
-        verify(displayer, times(1)).createMiniAppDisplay(basePath, TEST_MA_ID)
-    }
+            verify(miniAppDownloader, times(2)).getMiniApp(TEST_MA_ID)
+        }
 
     @Test
     fun `should invoke from MiniAppInfoFetcher when calling get miniapp info`() = runBlockingTest {
@@ -72,10 +84,26 @@ class RealMiniAppSpec {
     }
 
     @Test
-    fun `should not cache ApiClient for existing configuration`() {
+    fun `should not create ApiClient for existing configuration`() {
+        val miniApp = Mockito.spy(realMiniApp)
+
         realMiniApp.updateConfiguration(miniAppSdkConfig)
 
-        verify(apiClientRepository, times(0))
-            .registerApiClient(miniAppSdkConfig.key, apiClient)
+        verify(miniApp, times(0)).createApiClient(miniAppSdkConfig)
+    }
+
+    @Test
+    fun `should create a new ApiClient when there is no cache`() {
+        AppInfo.instance = mock()
+        val miniApp = Mockito.spy(realMiniApp)
+        val miniAppSdkConfig = MiniAppSdkConfig(
+            baseUrl = TEST_URL_HTTPS_2,
+            rasAppId = TEST_HA_ID_APP,
+            subscriptionKey = TEST_HA_SUBSCRIPTION_KEY,
+            hostAppVersionId = TEST_HA_ID_VERSION)
+
+        miniApp.updateConfiguration(miniAppSdkConfig)
+
+        verify(miniApp, times(1)).createApiClient(miniAppSdkConfig)
     }
 }

@@ -5,6 +5,7 @@ import androidx.annotation.VisibleForTesting
 import com.rakuten.tech.mobile.miniapp.api.ApiClient
 import com.rakuten.tech.mobile.miniapp.api.ApiClientRepository
 import com.rakuten.tech.mobile.miniapp.display.Displayer
+import com.rakuten.tech.mobile.miniapp.js.MiniAppMessageBridge
 import com.rakuten.tech.mobile.miniapp.storage.FileWriter
 import com.rakuten.tech.mobile.miniapp.storage.MiniAppStatus
 import com.rakuten.tech.mobile.miniapp.storage.MiniAppStorage
@@ -27,17 +28,44 @@ abstract class MiniApp internal constructor() {
 
     /**
      * Creates a mini app.
-     * @param appId application ID of the mini app
-     * @param versionId a version ID associated with the mini app
+     * @param info metadata of a mini app.
      * The mini app is downloaded, saved and provides a [MiniAppDisplay] when successful
+     * @param miniAppMessageBridge the interface for communicating between host app & mini app
+     * @throws MiniAppSdkException when there is some issue during fetching,
+     * downloading or creating the view.
+     */
+    @Throws(MiniAppSdkException::class)
+    @Deprecated(message = "Please replace with create(MiniAppId, MiniAppMessageBridge)")
+    abstract suspend fun create(
+        info: MiniAppInfo,
+        miniAppMessageBridge: MiniAppMessageBridge
+    ): MiniAppDisplay
+
+    /**
+     * Creates a mini app.
+     * @param appId mini app id.
+     * The mini app is downloaded, saved and provides a [MiniAppDisplay] when successful
+     * @param miniAppMessageBridge the interface for communicating between host app & mini app
      * @throws MiniAppSdkException when there is some issue during fetching,
      * downloading or creating the view.
      */
     @Throws(MiniAppSdkException::class)
     abstract suspend fun create(
         appId: String,
-        versionId: String
+        miniAppMessageBridge: MiniAppMessageBridge
     ): MiniAppDisplay
+
+    /**
+     * @deprecated use {@link #create(MiniAppInfo, MiniAppMessageBridge)} instead.
+     * Creates a mini app.
+     * @param info metadata of a mini app.
+     * The mini app is downloaded, saved and provides a [MiniAppDisplay] when successful
+     * @throws MiniAppSdkException when there is some issue during fetching,
+     * downloading or creating the view.
+     */
+    @Throws(MiniAppSdkException::class)
+    @Deprecated(message = "Please replace with create(MiniAppId, MiniAppMessageBridge)")
+    abstract suspend fun create(info: MiniAppInfo): MiniAppDisplay
 
     /**
      * Fetches meta data information of a mini app.

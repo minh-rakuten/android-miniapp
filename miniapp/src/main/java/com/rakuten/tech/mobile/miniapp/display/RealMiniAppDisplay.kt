@@ -1,78 +1,58 @@
 package com.rakuten.tech.mobile.miniapp.display
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.view.View
-import android.view.ViewGroup
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import android.widget.FrameLayout
 import androidx.annotation.VisibleForTesting
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.OnLifecycleEvent
-import androidx.webkit.WebViewAssetLoader
 import com.rakuten.tech.mobile.miniapp.MiniAppDisplay
-import java.io.File
-
-private const val ASSET_DOMAIN_SUFFIX = "miniapps.androidplatform.net"
-private const val SUB_DOMAIN_PATH = "miniapp"
+import com.rakuten.tech.mobile.miniapp.js.MiniAppMessageBridge
+import com.rakuten.tech.mobile.miniapp.sdkExceptionForNoActivityContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @SuppressLint("SetJavaScriptEnabled")
 internal class RealMiniAppDisplay(
-    context: Context,
+    val context: Context,
     val basePath: String,
-    val appId: String
-) : MiniAppDisplay, WebView(context) {
+    val appId: String,
+    val miniAppMessageBridge: MiniAppMessageBridge
+) : MiniAppDisplay {
 
-    private val miniAppDomain = "$appId.$ASSET_DOMAIN_SUFFIX"
+    @VisibleForTesting
+    internal var miniAppWebView: MiniAppWebView? = null
 
-    init {
-        layoutParams = FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
-        )
+    // Returns the view for any context type, in backward-compatibility manner
+    override suspend fun getMiniAppView(): View = provideMiniAppWebView(context)
 
-        settings.javaScriptEnabled = true
-        settings.allowUniversalAccessFromFileURLs = true
-        settings.domStorageEnabled = true
-        settings.databaseEnabled = true
-        webViewClient = MiniAppWebViewClient(getWebViewAssetLoader())
-        loadUrl(getLoadUrl())
-    }
-
-    override fun setWebViewClient(client: WebViewClient?) {
-        super.setWebViewClient(client ?: MiniAppWebViewClient(getWebViewAssetLoader()))
-    }
-
-    override fun getMiniAppView(): View = this
+    // Returns the view only when context type is legit else throw back error
+    // Activity context needs to be used here, to prevent issues, where some native elements are
+    // not rendered successfully in the mini app e.g. select tags
+    override suspend fun getMiniAppView(activityContext: Context): View? =
+        if (isContextValid(activityContext)) {
+            provideMiniAppWebView(activityContext)
+        } else throw sdkExceptionForNoActivityContext()
 
     @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
     override fun destroyView() {
-        stopLoading()
-        webViewClient = null
-        destroy()
+        miniAppWebView?.destroyView()
+        miniAppWebView = null
     }
 
-    private fun getWebViewAssetLoader() = WebViewAssetLoader.Builder()
-        .setDomain(miniAppDomain)
-        .addPathHandler(
-            "/$SUB_DOMAIN_PATH/", WebViewAssetLoader.InternalStoragePathHandler(
-                context,
-                File(basePath)
+    private suspend fun provideMiniAppWebView(context: Context): MiniAppWebView =
+        miniAppWebView ?: withContext(Dispatchers.Main) {
+            MiniAppWebView(
+                context = context,
+                basePath = basePath,
+                appId = appId,
+                miniAppMessageBridge = miniAppMessageBridge
             )
-        )
-        .build()
+        }
 
     @VisibleForTesting
-    internal fun getLoadUrl() = "https://$miniAppDomain/$SUB_DOMAIN_PATH/index.html"
-}
-
-@VisibleForTesting
-internal class MiniAppWebViewClient(private val loader: WebViewAssetLoader) : WebViewClient() {
-
-    override fun shouldInterceptRequest(
-        view: WebView,
-        request: WebResourceRequest
-    ): WebResourceResponse? = loader.shouldInterceptRequest(request.url)
+    internal fun isContextValid(activityContext: Context) =
+        activityContext is Activity || activityContext is ActivityCompat
 }

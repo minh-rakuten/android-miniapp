@@ -11,26 +11,73 @@ android {
     defaultConfig {
         versionCode 1
         versionName project.version
-
-        manifestPlaceholders = [
-                baseUrl        : property("MINIAPP_SERVER_BASE_URL") ?: "https://www.example.com/",
-                hostAppVersion : property("HOST_APP_VERSION") ?: "test-host-app-version",
-                appId          : property("HOST_APP_ID") ?: "test-host-app-id",
-                subscriptionKey: property("HOST_APP_SUBSCRIPTION_KEY") ?: "test-subs-key"
-        ]
-
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Set signing config only if the keystore file exists
+    def keystoreFile = file('release-keystore.jks')
+    if (keystoreFile.exists()) {
+        signingConfigs {
+            release {
+                keyAlias 'miniapp'
+                keyPassword "$System.env.MINIAPP_RELEASE_KEY_PASSWORD"
+
+                storeFile keystoreFile
+                storePassword "$System.env.MINIAPP_KEYSTORE_PASSWORD"
+            }
+        }
+
+        buildTypes.release {
+            signingConfig signingConfigs.release
+        }
+    }
+
+    def appName = "Mini App Sample"
+    def stagingManifestPlaceholders = [
+            baseUrl        : property("MINIAPP_SERVER_BASE_URL") ?: "https://www.example.com/",
+            hostAppVersion : property("HOST_APP_VERSION") ?: "test-host-app-version",
+            appId          : property("HOST_APP_ID") ?: "test-host-app-id",
+            subscriptionKey: property("HOST_APP_SUBSCRIPTION_KEY") ?: "test-subs-key"
+    ]
+    def prodManifestPlaceholders = [
+            baseUrl        : property("MINIAPP_PROD_SERVER_BASE_URL") ?: "https://www.example.com/",
+            hostAppVersion : property("HOST_APP_PROD_VERSION") ?: "test-host-app-version",
+            appId          : property("HOST_APP_PROD_ID") ?: "test-host-app-id",
+            subscriptionKey: property("HOST_APP_PROD_SUBSCRIPTION_KEY") ?: "test-subs-key"
+    ]
+
+    def buildVersion = System.getenv("CIRCLE_BUILD_NUM") ?: new Date().format('yyMMddHHmm')
+
     buildTypes {
         debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-DEBUG'
+            resValue "string", "app_name", "$appName DEBUG"
+            resValue "string", "build_version", buildVersion
+            resValue "string", "miniapp_sdk_version", project.version
             debuggable true
             minifyEnabled false
+
+            manifestPlaceholders = stagingManifestPlaceholders
         }
         release {
-            minifyEnabled true
+            resValue "string", "app_name", appName
+            resValue "string", "build_version", buildVersion
+            resValue "string", "miniapp_sdk_version", project.version
             debuggable true
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
+            manifestPlaceholders = prodManifestPlaceholders
+        }
+        staging {
+            initWith release
+            applicationIdSuffix '.staging'
+            versionNameSuffix "-STG-build-$buildVersion"
+            resValue "string", "app_name", "$appName STG"
+            matchingFallbacks = ['release', 'debug']
+
+            manifestPlaceholders = stagingManifestPlaceholders
         }
     }
 
@@ -50,10 +97,12 @@ dependencies {
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$androidx_lifecycle"
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    implementation "com.google.code.gson:gson:$gson"
 
     implementation "com.github.bumptech.glide:glide:$glide"
     annotationProcessor "com.github.bumptech.glide:compiler:$glide"
     implementation "com.google.android.material:material:$material"
+    implementation "androidx.swiperefreshlayout:swiperefreshlayout:$swipe_refresh_layout"
 
     testImplementation "junit:junit:$junit"
 }

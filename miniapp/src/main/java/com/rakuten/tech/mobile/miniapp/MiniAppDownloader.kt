@@ -6,33 +6,40 @@ import com.rakuten.tech.mobile.miniapp.api.ManifestEntity
 import com.rakuten.tech.mobile.miniapp.api.UpdatableApiClient
 import com.rakuten.tech.mobile.miniapp.storage.MiniAppStatus
 import com.rakuten.tech.mobile.miniapp.storage.MiniAppStorage
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
 
 internal class MiniAppDownloader(
     private val storage: MiniAppStorage,
     private var apiClient: ApiClient,
-    private val miniAppStatus: MiniAppStatus
+    private val miniAppStatus: MiniAppStatus,
+    private val coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : UpdatableApiClient {
 
-    // Only run the latest version of specified MiniApp.
-    suspend fun getMiniApp(appId: String, versionId: String): String = when {
-        !isLatestVersion(appId, versionId) -> throw sdkExceptionForInvalidVersion()
-        miniAppStatus
-            .isVersionDownloaded(appId, versionId) -> storage.getMiniAppVersionPath(appId, versionId)
-        else -> startDownload(appId, versionId)
-    }
-
-    @Suppress("TooGenericExceptionCaught", "SwallowedException")
-    private suspend fun isLatestVersion(appId: String, versionId: String): Boolean {
+    @Suppress("SwallowedException", "LongMethod")
+    suspend fun getMiniApp(appId: String): String {
         try {
-            return apiClient.fetchInfo(appId).version.versionId == versionId
-        } catch (e: Exception) {
-            // If backend functions correctly, this should never happen
-            throw sdkExceptionForInternalServerError()
+            val miniAppInfo = apiClient.fetchInfo(appId)
+            val versionPath = storage.getMiniAppVersionPath(miniAppInfo.id, miniAppInfo.version.versionId)
+            return when {
+                miniAppStatus.isVersionDownloaded(
+                    miniAppInfo.id, miniAppInfo.version.versionId, versionPath) -> versionPath
+                else -> startDownload(miniAppInfo.id, miniAppInfo.version.versionId)
+            }
+        } catch (netError: MiniAppNetException) {
+            // load local if possible when offline
+            val versionId = miniAppStatus.getDownloadedVersion(appId)
+            if (versionId != null) {
+                val versionPath = storage.getMiniAppVersionPath(appId, versionId)
+                if (miniAppStatus.isVersionDownloaded(appId, versionId, versionPath))
+                    return versionPath
+            }
         }
+        // cannot load miniapp from server
+        throw sdkExceptionForInternalServerError()
     }
 
     @VisibleForTesting
@@ -61,7 +68,8 @@ internal class MiniAppDownloader(
                     storage.saveFile(file, baseSavePath, response.byteStream())
                 }
                 miniAppStatus.setVersionDownloaded(appId, versionId, true)
-                withContext(Dispatchers.IO) {
+                miniAppStatus.saveDownloadedVersion(appId, versionId)
+                withContext(coroutineDispatcher) {
                     launch(Job()) { storage.removeOutdatedVersionApp(appId, versionId) }
                 }
                 return baseSavePath

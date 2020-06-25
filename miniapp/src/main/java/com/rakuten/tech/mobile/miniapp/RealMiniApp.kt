@@ -1,8 +1,10 @@
 package com.rakuten.tech.mobile.miniapp
 
+import androidx.annotation.VisibleForTesting
 import com.rakuten.tech.mobile.miniapp.api.ApiClient
 import com.rakuten.tech.mobile.miniapp.api.ApiClientRepository
 import com.rakuten.tech.mobile.miniapp.display.Displayer
+import com.rakuten.tech.mobile.miniapp.js.MiniAppMessageBridge
 
 internal class RealMiniApp(
     private val apiClientRepository: ApiClientRepository,
@@ -18,29 +20,37 @@ internal class RealMiniApp(
         else -> miniAppInfoFetcher.getInfo(appId)
     }
 
+    @Suppress("TooGenericExceptionThrown")
+    override suspend fun create(info: MiniAppInfo): MiniAppDisplay =
+        executingCreate(info.id, object : MiniAppMessageBridge() {
+            override fun getUniqueId(): String = throw Exception("MiniAppMessageBridge has not been implemented")
+        })
+
+    override suspend fun create(
+        info: MiniAppInfo,
+        miniAppMessageBridge: MiniAppMessageBridge
+    ): MiniAppDisplay = executingCreate(info.id, miniAppMessageBridge)
+
     override suspend fun create(
         appId: String,
-        versionId: String
+        miniAppMessageBridge: MiniAppMessageBridge
+    ): MiniAppDisplay = executingCreate(appId, miniAppMessageBridge)
+
+    private suspend fun executingCreate(
+        miniAppId: String,
+        miniAppMessageBridge: MiniAppMessageBridge
     ): MiniAppDisplay = when {
-        appId.isBlank() || versionId.isBlank() -> throw sdkExceptionForInvalidArguments()
+        miniAppId.isBlank() -> throw sdkExceptionForInvalidArguments()
         else -> {
-            val basePath = miniAppDownloader.getMiniApp(
-                appId = appId,
-                versionId = versionId
-            )
-            displayer.createMiniAppDisplay(basePath, appId)
+            val basePath = miniAppDownloader.getMiniApp(miniAppId)
+            displayer.createMiniAppDisplay(basePath, miniAppId, miniAppMessageBridge)
         }
     }
 
     override fun updateConfiguration(newConfig: MiniAppSdkConfig) {
         var nextApiClient = apiClientRepository.getApiClientFor(newConfig.key)
         if (nextApiClient == null) {
-            nextApiClient = ApiClient(
-                baseUrl = newConfig.baseUrl,
-                rasAppId = newConfig.rasAppId,
-                subscriptionKey = newConfig.subscriptionKey,
-                hostAppVersionId = newConfig.hostAppVersionId
-            )
+            nextApiClient = createApiClient(newConfig)
             apiClientRepository.registerApiClient(newConfig.key, nextApiClient)
         }
 
@@ -49,4 +59,13 @@ internal class RealMiniApp(
             miniAppInfoFetcher.updateApiClient(it)
         }
     }
+
+    @VisibleForTesting
+    internal fun createApiClient(newConfig: MiniAppSdkConfig) =
+        ApiClient(
+            baseUrl = newConfig.baseUrl,
+            rasAppId = newConfig.rasAppId,
+            subscriptionKey = newConfig.subscriptionKey,
+            hostAppVersionId = newConfig.hostAppVersionId
+        )
 }

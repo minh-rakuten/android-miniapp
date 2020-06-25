@@ -8,25 +8,31 @@ import android.view.View
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModelProviders
+import androidx.lifecycle.ViewModelProvider
+import com.rakuten.tech.mobile.miniapp.MiniAppInfo
+import com.rakuten.tech.mobile.miniapp.js.MiniAppMessageBridge
 import com.rakuten.tech.mobile.miniapp.testapp.R
 import com.rakuten.tech.mobile.testapp.ui.base.BaseActivity
+import com.rakuten.tech.mobile.testapp.ui.settings.AppSettings
 import kotlinx.android.synthetic.main.mini_app_display_activity.*
-import kotlinx.coroutines.launch
 
 class MiniAppDisplayActivity : BaseActivity() {
 
     private lateinit var appId: String
-    private lateinit var versionId: String
 
     companion object {
         private val appIdTag = "app_id_tag"
-        private val appVersionTag = "app_version"
+        private val miniAppTag = "mini_app_tag"
 
-        fun start(context: Context, appId: String, versionId: String) {
+        fun start(context: Context, appId: String) {
             context.startActivity(Intent(context, MiniAppDisplayActivity::class.java).apply {
                 putExtra(appIdTag, appId)
-                putExtra(appVersionTag, versionId)
+            })
+        }
+
+        fun start(context: Context, miniAppInfo: MiniAppInfo) {
+            context.startActivity(Intent(context, MiniAppDisplayActivity::class.java).apply {
+                putExtra(miniAppTag, miniAppInfo)
             })
         }
     }
@@ -35,17 +41,16 @@ class MiniAppDisplayActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (intent.hasExtra(appIdTag) && intent.hasExtra(appVersionTag)) {
+        if (intent.hasExtra(miniAppTag) || intent.hasExtra(appIdTag)) {
             appId = intent.getStringExtra(appIdTag) ?: ""
-            versionId = intent.getStringExtra(appVersionTag) ?: ""
 
             setContentView(R.layout.mini_app_display_activity)
 
-            viewModel = ViewModelProviders.of(this)
-                .get(MiniAppDisplayViewModel::class.java).apply {
+            viewModel = ViewModelProvider.NewInstanceFactory()
+                .create(MiniAppDisplayViewModel::class.java).apply {
 
                     setHostLifeCycle(lifecycle)
-                    miniAppView.observe(this@MiniAppDisplayActivity, Observer {
+                    miniAppDisplay.observe(this@MiniAppDisplayActivity, Observer {
                         if (ApplicationInfo.FLAG_DEBUGGABLE == 2)
                             WebView.setWebContentsDebuggingEnabled(true)
                         //action: display webview
@@ -61,9 +66,20 @@ class MiniAppDisplayActivity : BaseActivity() {
                     })
                 }
 
-            launch {
-                viewModel.obtainMiniAppView(appId, versionId)
+            val miniAppMessageBridge = object: MiniAppMessageBridge() {
+                override fun getUniqueId() = AppSettings.instance.uniqueId
             }
+
+            if (appId.isEmpty())
+                viewModel.obtainMiniAppDisplay(
+                    this@MiniAppDisplayActivity,
+                    intent.getParcelableExtra<MiniAppInfo>(miniAppTag)!!.id,
+                    miniAppMessageBridge)
+            else
+                viewModel.obtainMiniAppDisplay(
+                    this@MiniAppDisplayActivity,
+                    appId,
+                    miniAppMessageBridge)
         }
     }
 

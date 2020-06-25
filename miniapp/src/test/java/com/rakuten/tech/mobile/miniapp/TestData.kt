@@ -10,7 +10,7 @@ internal const val TEST_ID_MINIAPP_VERSION = "fa7e1522-adf2-4322-8146-84dca1f812
 internal const val TEST_BASE_PATH = "dummy"
 internal const val TEST_URL_FILE = "file.storage/test/file.abc"
 internal const val TEST_URL_HTTPS_1 = "https://www.example.com/1"
-internal const val TEST_URL_HTTPS_2 = "https://www.example.com/2"
+internal const val TEST_URL_HTTPS_2 = "https://www.example.com/2/"
 
 internal const val TEST_MA_ID = "test_id"
 internal const val TEST_MA_DISPLAY_NAME = "test_name"
@@ -21,6 +21,9 @@ internal const val TEST_MA_VERSION_ID = "test_vid"
 internal const val TEST_HA_ID_VERSION = "test_version"
 internal const val TEST_HA_ID_APP = "test_hostapp_id"
 internal const val TEST_HA_SUBSCRIPTION_KEY = "test_subscription_key"
+
+internal const val TEST_CALLBACK_ID = "test_callback_id"
+internal const val TEST_CALLBACK_VALUE = "test_callback_value"
 
 internal const val VALID_FILE_URL_PATH =
     "https://www.example.com/"

@@ -14,7 +14,6 @@ import com.rakuten.tech.mobile.miniapp.MiniAppInfo
 import com.rakuten.tech.mobile.miniapp.testapp.R
 import com.rakuten.tech.mobile.miniapp.testapp.databinding.ItemListMiniappBinding
 
-
 class MiniAppListAdapter(var miniapps: List<MiniAppInfo>, val miniAppList: MiniAppList) :
     ListAdapter<MiniAppInfo, MiniAppsListViewHolder>(MiniAppDiffCallback()) {
 
@@ -46,7 +45,7 @@ private class MiniAppDiffCallback : DiffUtil.ItemCallback<MiniAppInfo>() {
 }
 
 interface MiniAppList {
-    fun onMiniAppItemClick(appId: String, versionId: String)
+    fun onMiniAppItemClick(miniapp: MiniAppInfo)
 }
 
 class MiniAppsListViewHolder(val binding: ItemListMiniappBinding) :
@@ -59,7 +58,7 @@ class MiniAppsListViewHolder(val binding: ItemListMiniappBinding) :
         binding.tvVersion.isSelected = true
 
         binding.itemRoot.setOnClickListener {
-            miniAppList.onMiniAppItemClick(miniapp.id, miniapp.version.versionId)
+            miniAppList.onMiniAppItemClick(miniapp)
         }
     }
 
@@ -68,6 +67,6 @@ class MiniAppsListViewHolder(val binding: ItemListMiniappBinding) :
 fun setIcon(context: Context, uri: Uri, view: ImageView) {
     Glide.with(context)
         .load(uri).apply(RequestOptions().circleCrop())
-        .error(R.drawable.ic_default)
+        .placeholder(R.drawable.ic_default)
         .into(view)
 }
