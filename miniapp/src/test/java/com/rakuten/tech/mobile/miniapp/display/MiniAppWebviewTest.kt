@@ -3,6 +3,7 @@ package com.rakuten.tech.mobile.miniapp.display
 import android.content.Context
 import android.net.Uri
 import android.view.ViewGroup
+import android.webkit.GeolocationPermissions
 import android.webkit.WebResourceRequest
 import androidx.core.net.toUri
 import androidx.test.core.app.ApplicationProvider.getApplicationContext
@@ -12,6 +13,7 @@ import com.nhaarman.mockitokotlin2.atLeastOnce
 import com.nhaarman.mockitokotlin2.mock
 import com.nhaarman.mockitokotlin2.times
 import com.nhaarman.mockitokotlin2.verify
+import com.rakuten.tech.mobile.miniapp.TEST_HA_NAME
 import com.rakuten.tech.mobile.miniapp.TEST_MA_ID
 import com.rakuten.tech.mobile.miniapp.TEST_URL_HTTPS_1
 import com.rakuten.tech.mobile.miniapp.js.MiniAppMessageBridge
@@ -29,16 +31,21 @@ class MiniAppWebviewTest {
     private lateinit var miniAppWebView: MiniAppWebView
     private lateinit var webResourceRequest: WebResourceRequest
     private val miniAppMessageBridge: MiniAppMessageBridge = mock()
+    private lateinit var webChromeClient: MiniAppWebChromeClient
 
     @Before
     fun setup() {
         context = getApplicationContext()
         basePath = context.filesDir.path
+        webChromeClient = Mockito.spy(MiniAppWebChromeClient(context))
+
         miniAppWebView = MiniAppWebView(
             context,
             basePath = basePath,
             appId = TEST_MA_ID,
-            miniAppMessageBridge = miniAppMessageBridge
+            miniAppMessageBridge = miniAppMessageBridge,
+            hostAppInfo = TEST_HA_NAME,
+            miniAppWebChromeClient = webChromeClient
         )
         webResourceRequest = getWebResReq(miniAppWebView.getLoadUrl().toUri())
     }
@@ -80,6 +87,25 @@ class MiniAppWebviewTest {
     }
 
     @Test
+    fun `when MiniAppWebView is created then user-agent contains host app info`() {
+        miniAppWebView.hostAppInfo shouldBe TEST_HA_NAME
+        miniAppWebView.settings.userAgentString shouldEndWith TEST_HA_NAME
+    }
+
+    @Test
+    fun `should keep user-agent unchanged when host app info is empty`() {
+        miniAppWebView = MiniAppWebView(
+            context,
+            basePath = basePath,
+            appId = TEST_MA_ID,
+            miniAppMessageBridge = miniAppMessageBridge,
+            hostAppInfo = "",
+            miniAppWebChromeClient = webChromeClient
+        )
+        miniAppWebView.settings.userAgentString shouldNotEndWith TEST_HA_NAME
+    }
+
+    @Test
     fun `when destroyView called then the MiniAppWebView should be disposed`() {
         val displayer = Mockito.spy(miniAppWebView)
         displayer.destroyView()
@@ -97,9 +123,9 @@ class MiniAppWebviewTest {
     @Test
     fun `each mini app should have different domain`() {
         val miniAppWebViewForMiniapp1 = MiniAppWebView(
-            context, miniAppWebView.basePath, "app-id-1", miniAppMessageBridge)
+            context, miniAppWebView.basePath, "app-id-1", miniAppMessageBridge, TEST_HA_NAME)
         val miniAppWebViewForMiniapp2 = MiniAppWebView(
-            context, miniAppWebView.basePath, "app-id-2", miniAppMessageBridge)
+            context, miniAppWebView.basePath, "app-id-2", miniAppMessageBridge, TEST_HA_NAME)
         miniAppWebViewForMiniapp1.url shouldNotBeEqualTo miniAppWebViewForMiniapp2.url
     }
 
@@ -155,6 +181,21 @@ class MiniAppWebviewTest {
     fun `bridge js should be null when js asset is inaccessible`() {
         val webClient = MiniAppWebChromeClient(mock())
         webClient.bridgeJs shouldBe null
+    }
+
+    @Test
+    fun `should invoke callback from onRequestPermissionsResult when it is called`() {
+        val geoLocationCallback = Mockito.spy(
+            GeolocationPermissions.Callback { origin, allow, retain ->
+                allow shouldBe true
+                retain shouldBe false
+            }
+        )
+
+        webChromeClient.onGeolocationPermissionsShowPrompt("", geoLocationCallback)
+        webChromeClient.onGeolocationPermissionsShowPrompt(null, null)
+
+        verify(geoLocationCallback, times(1)).invoke("", true, false)
     }
 
     private fun getWebResReq(uriReq: Uri): WebResourceRequest {

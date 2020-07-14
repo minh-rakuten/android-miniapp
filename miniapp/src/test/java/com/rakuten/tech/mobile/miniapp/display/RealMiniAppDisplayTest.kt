@@ -9,6 +9,7 @@ import com.nhaarman.mockitokotlin2.mock
 import com.nhaarman.mockitokotlin2.times
 import com.nhaarman.mockitokotlin2.verify
 import com.rakuten.tech.mobile.miniapp.MiniAppSdkException
+import com.rakuten.tech.mobile.miniapp.TEST_HA_NAME
 import com.rakuten.tech.mobile.miniapp.TEST_MA_ID
 import com.rakuten.tech.mobile.miniapp.js.MiniAppMessageBridge
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,7 +36,8 @@ class RealMiniAppDisplayTest {
             context,
             basePath = basePath,
             appId = TEST_MA_ID,
-            miniAppMessageBridge = miniAppMessageBridge
+            miniAppMessageBridge = miniAppMessageBridge,
+            hostAppInfo = TEST_HA_NAME
         )
     }
 
@@ -79,4 +81,33 @@ class RealMiniAppDisplayTest {
             When calling displayer.isContextValid(context) itReturns true
             displayer.getMiniAppView(context) shouldNotHaveTheSameClassAs WebView::class
         }
+
+    @Test
+    fun `should not navigate when MiniAppWebView is null`() {
+        realDisplay.navigateBackward() shouldBe false
+        realDisplay.navigateForward() shouldBe false
+    }
+
+    @Test
+    fun `should not navigate when MiniAppWebView cannot do navigation`() = runBlockingTest {
+        val displayer = Mockito.spy(realDisplay)
+        When calling displayer.isContextValid(context) itReturns true
+        displayer.getMiniAppView(context)
+
+        displayer.navigateBackward() shouldBe false
+        displayer.navigateForward() shouldBe false
+    }
+
+    @Test
+    fun `should be able to do navigation when possible`() = runBlockingTest {
+        val displayer = Mockito.spy(realDisplay)
+        When calling displayer.isContextValid(context) itReturns true
+        val miniAppWebView: MiniAppWebView = mock()
+        When calling (miniAppWebView as WebView).canGoBack() itReturns true
+        When calling miniAppWebView.canGoForward() itReturns true
+        displayer.miniAppWebView = miniAppWebView
+
+        displayer.navigateBackward() shouldBe true
+        displayer.navigateForward() shouldBe true
+    }
 }
