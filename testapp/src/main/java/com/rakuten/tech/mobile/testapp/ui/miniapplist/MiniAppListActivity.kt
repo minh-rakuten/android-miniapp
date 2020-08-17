@@ -1,5 +1,7 @@
 package com.rakuten.tech.mobile.testapp.ui.miniapplist
 
+import android.app.Activity
+import android.app.SearchManager
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -19,10 +21,14 @@ class MiniAppListActivity : MenuBaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.mini_app_list_activity)
+        launchMiniApps()
+    }
+
+    private fun launchMiniApps() {
         if (AppSettings.instance.isSettingSaved) {
             layoutTut.visibility = View.GONE
             supportFragmentManager.beginTransaction()
-                .replace(R.id.container, MiniAppListFragment.newInstance())
+                .replace(R.id.container, MiniAppListFragment.newInstance(), MiniAppListFragment.TAG)
                 .commitNow()
         } else {
             layoutTut.visibility = View.VISIBLE
@@ -37,8 +43,35 @@ class MiniAppListActivity : MenuBaseActivity() {
     override fun navigateToScreen(): Boolean {
         val intent = Intent(this, SettingsMenuActivity::class.java)
         intent.putExtra(MENU_SCREEN_NAME, MINI_APP_LIST_ACTIVITY)
-        startActivity(intent)
+        startActivityForResult(intent, 0)
         return true
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        when (intent.action) {
+            Intent.ACTION_SEARCH -> {
+                val query = intent.getStringExtra(SearchManager.QUERY)
+                val fragment: MiniAppListFragment? =
+                    supportFragmentManager.findFragmentByTag(MiniAppListFragment.TAG) as MiniAppListFragment
+                if (fragment?.isAdded ?: return) {
+                    fragment.startSearch(query)
+                }
+            }
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        when (resultCode) {
+            Activity.RESULT_CANCELED -> {
+                launchMiniApps()
+            }
+        }
+    }
 }

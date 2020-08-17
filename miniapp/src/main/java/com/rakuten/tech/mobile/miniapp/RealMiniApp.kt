@@ -5,7 +5,6 @@ import com.rakuten.tech.mobile.miniapp.api.ApiClient
 import com.rakuten.tech.mobile.miniapp.api.ApiClientRepository
 import com.rakuten.tech.mobile.miniapp.display.Displayer
 import com.rakuten.tech.mobile.miniapp.js.MiniAppMessageBridge
-import com.rakuten.tech.mobile.miniapp.js.MiniAppPermissionType
 
 internal class RealMiniApp(
     private val apiClientRepository: ApiClientRepository,
@@ -21,22 +20,6 @@ internal class RealMiniApp(
         else -> miniAppInfoFetcher.getInfo(appId)
     }
 
-    @Suppress("TooGenericExceptionThrown")
-    override suspend fun create(info: MiniAppInfo): MiniAppDisplay =
-        executingCreate(info.id, object : MiniAppMessageBridge() {
-            override fun getUniqueId(): String = throw sdkExceptionForNoMiniAppMessageBridge()
-
-            override fun requestPermission(
-                miniAppPermissionType: MiniAppPermissionType,
-                callback: (isGranted: Boolean) -> Unit
-            ) = throw sdkExceptionForNoMiniAppMessageBridge()
-        })
-
-    override suspend fun create(
-        info: MiniAppInfo,
-        miniAppMessageBridge: MiniAppMessageBridge
-    ): MiniAppDisplay = executingCreate(info.id, miniAppMessageBridge)
-
     override suspend fun create(
         appId: String,
         miniAppMessageBridge: MiniAppMessageBridge
@@ -48,8 +31,8 @@ internal class RealMiniApp(
     ): MiniAppDisplay = when {
         miniAppId.isBlank() -> throw sdkExceptionForInvalidArguments()
         else -> {
-            val basePath = miniAppDownloader.getMiniApp(miniAppId)
-            displayer.createMiniAppDisplay(basePath, miniAppId, miniAppMessageBridge)
+            val (basePath, miniAppInfo) = miniAppDownloader.getMiniApp(miniAppId)
+            displayer.createMiniAppDisplay(basePath, miniAppInfo, miniAppMessageBridge)
         }
     }
 

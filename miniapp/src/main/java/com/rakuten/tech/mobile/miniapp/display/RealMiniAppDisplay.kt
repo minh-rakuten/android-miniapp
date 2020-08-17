@@ -10,6 +10,7 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.OnLifecycleEvent
 import com.rakuten.tech.mobile.miniapp.MiniAppDisplay
+import com.rakuten.tech.mobile.miniapp.MiniAppInfo
 import com.rakuten.tech.mobile.miniapp.js.MiniAppMessageBridge
 import com.rakuten.tech.mobile.miniapp.sdkExceptionForNoActivityContext
 import kotlinx.coroutines.Dispatchers
@@ -19,16 +20,13 @@ import kotlinx.coroutines.withContext
 internal class RealMiniAppDisplay(
     val context: Context,
     val basePath: String,
-    val appId: String,
+    val miniAppInfo: MiniAppInfo,
     val miniAppMessageBridge: MiniAppMessageBridge,
     val hostAppUserAgentInfo: String
 ) : MiniAppDisplay {
 
     @VisibleForTesting
     internal var miniAppWebView: MiniAppWebView? = null
-
-    // Returns the view for any context type, in backward-compatibility manner
-    override suspend fun getMiniAppView(): View = provideMiniAppWebView(context)
 
     // Returns the view only when context type is legit else throw back error
     // Activity context needs to be used here, to prevent issues, where some native elements are
@@ -71,7 +69,7 @@ internal class RealMiniAppDisplay(
             miniAppWebView = MiniAppWebView(
                 context = context,
                 basePath = basePath,
-                appId = appId,
+                miniAppInfo = miniAppInfo,
                 miniAppMessageBridge = miniAppMessageBridge,
                 hostAppUserAgentInfo = hostAppUserAgentInfo
             )
