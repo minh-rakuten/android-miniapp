@@ -80,30 +80,31 @@ jacoco {
     toolVersion = "0.8.5"
 }
 
-apply from: '../gradle/documentation.gradle'
+apply from: '../config/documentation/dokka/android.gradle'
 dokka {
     configuration {
         sourceRoot {
             path = "miniapp/src/main"
         }
-
-        perPackageOption {
-            prefix = "com.rakuten.tech.mobile.miniapp.legacy"
-            suppress = true
-        }
     }
 }
 
 apply from: '../config/publish/android.gradle'
-publishing {
-    publications {
-        MiniApp(MavenPublication, androidArtifact())
+afterEvaluate {
+    publishing {
+        publications {
+            MiniApp(MavenPublication, androidArtifact())
+        }
     }
 }
-
 def isSnapshot = project.version.contains('-')
 if (isSnapshot) {
     apply from: '../config/publish/artifactory.gradle'
 } else {
     apply from: '../config/publish/bintray.gradle'
 }
+
+project.ext.docPublishing = [
+        repoUri: 'git@github.com:rakutentech/android-miniapp.git'
+]
+apply from: '../config/publish/documentation/gh-pages.gradle'

@@ -5,19 +5,9 @@ import com.rakuten.tech.mobile.miniapp.VALID_FILE_URL_PATH
 import org.amshove.kluent.shouldEqual
 import org.junit.Test
 
-class UrlToFileInfoParserTest {
+class UrlToFileInfoParserSpec {
 
     private var urlParser = UrlToFileInfoParser()
-
-    @Test
-    fun shouldGetFilePathWithValidUrl() {
-        urlParser.getFilePath(VALID_FILE_URL_PATH) shouldEqual "/a/b/"
-    }
-
-    @Test
-    fun shouldGetEmptyFilePathWithInvalidUrl() {
-        urlParser.getFilePath(INVALID_FILE_URL_PATH) shouldEqual ""
-    }
 
     @Test
     fun shouldGetFileNameWithValidUrl() {

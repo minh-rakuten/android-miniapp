@@ -5,7 +5,10 @@ import androidx.annotation.VisibleForTesting
 import com.rakuten.tech.mobile.miniapp.api.ApiClient
 import com.rakuten.tech.mobile.miniapp.api.ApiClientRepository
 import com.rakuten.tech.mobile.miniapp.display.Displayer
+import com.rakuten.tech.mobile.miniapp.permission.MiniAppCustomPermission
+import com.rakuten.tech.mobile.miniapp.permission.MiniAppCustomPermissionCache
 import com.rakuten.tech.mobile.miniapp.js.MiniAppMessageBridge
+import com.rakuten.tech.mobile.miniapp.navigator.MiniAppNavigator
 import com.rakuten.tech.mobile.miniapp.storage.FileWriter
 import com.rakuten.tech.mobile.miniapp.storage.MiniAppStatus
 import com.rakuten.tech.mobile.miniapp.storage.MiniAppStorage
@@ -28,8 +31,8 @@ abstract class MiniApp internal constructor() {
 
     /**
      * Creates a mini app.
+     * The mini app is downloaded, saved and provides a [MiniAppDisplay] when successful.
      * @param appId mini app id.
-     * The mini app is downloaded, saved and provides a [MiniAppDisplay] when successful
      * @param miniAppMessageBridge the interface for communicating between host app & mini app
      * @throws MiniAppSdkException when there is some issue during fetching,
      * downloading or creating the view.
@@ -41,12 +44,40 @@ abstract class MiniApp internal constructor() {
     ): MiniAppDisplay
 
     /**
+     * Same as {@link #create(String, MiniAppMessageBridge)}.
+     * Use this to control external url loader.
+     * @param miniAppNavigator allow host app to handle specific urls such as external link.
+     */
+    @Throws(MiniAppSdkException::class)
+    abstract suspend fun create(
+        appId: String,
+        miniAppMessageBridge: MiniAppMessageBridge,
+        miniAppNavigator: MiniAppNavigator
+    ): MiniAppDisplay
+
+    /**
      * Fetches meta data information of a mini app.
      * @return [MiniAppInfo] for the provided appId of a mini app
      * @throws [MiniAppSdkException] when fetching fails from the BE server for any reason.
      */
     @Throws(MiniAppSdkException::class)
     abstract suspend fun fetchInfo(appId: String): MiniAppInfo
+
+    /**
+     * Get custom permissions with grant results per MiniApp from this SDK.
+     * @param miniAppId mini app id as the key to retrieve data from cache.
+     */
+    abstract fun getCustomPermissions(
+        miniAppId: String
+    ): MiniAppCustomPermission
+
+    /**
+     * Store custom permissions with grant results per MiniApp inside this SDK.
+     * @param miniAppCustomPermission the supplied custom permissions to be stored in cache.
+     */
+    abstract fun setCustomPermissions(
+        miniAppCustomPermission: MiniAppCustomPermission
+    )
 
     /**
      * Update SDK interaction interface based on [MiniAppSdkConfig] configuration.
@@ -90,7 +121,8 @@ abstract class MiniApp internal constructor() {
                 apiClientRepository = apiClientRepository,
                 displayer = Displayer(context, defaultConfig.hostAppUserAgentInfo),
                 miniAppDownloader = MiniAppDownloader(storage, apiClient, miniAppStatus),
-                miniAppInfoFetcher = MiniAppInfoFetcher(apiClient)
+                miniAppInfoFetcher = MiniAppInfoFetcher(apiClient),
+                miniAppCustomPermissionCache = MiniAppCustomPermissionCache(context)
             )
         }
     }

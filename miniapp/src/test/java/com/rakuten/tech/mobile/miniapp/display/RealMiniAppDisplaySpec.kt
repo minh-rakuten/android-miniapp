@@ -22,7 +22,7 @@ import org.mockito.Mockito
 
 @ExperimentalCoroutinesApi
 @RunWith(AndroidJUnit4::class)
-class RealMiniAppDisplayTest {
+class RealMiniAppDisplaySpec {
     private lateinit var context: Context
     private lateinit var basePath: String
     private lateinit var realDisplay: RealMiniAppDisplay
@@ -37,6 +37,7 @@ class RealMiniAppDisplayTest {
             basePath = basePath,
             miniAppInfo = TEST_MA,
             miniAppMessageBridge = miniAppMessageBridge,
+            miniAppNavigator = mock(),
             hostAppUserAgentInfo = TEST_HA_NAME
         )
     }

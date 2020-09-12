@@ -1,8 +1,21 @@
 ## CHANGELOG
 
-### 2.1.0 (in progress)
+### 2.x.x (in progress)
 **SDK**
-- Support telephone hyperlink in miniapp. See [this](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a).
+- **Feature:** Added public interface to read and store the custom permissions inside Android SDK. 
+
+**Sample App**
+- **Feature:** Added example for showing list of custom permissions (on request from Mini app) and response back to Mini app.
+
+### 2.1.0 (2020-09-03)
+**SDK**
+- **Feature:** Support telephone hyperlink in miniapp. See [this](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a).
+- **Feature:** Support webview video fullscreen.
+- **Fix:** `MiniAppSdkException` had a null message in some cases.
+- **Fix:** Some Mini Apps which use sub-directories were failing to unzip.
+
+**Sample App**
+- No changes
 
 ### 2.0.0 (2020-08-07)
 **SDK**
