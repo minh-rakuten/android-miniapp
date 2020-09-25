@@ -8,6 +8,8 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.rakuten.tech.mobile.miniapp.MiniAppInfo
 import com.rakuten.tech.mobile.miniapp.display.WebViewListener
+import com.rakuten.tech.mobile.miniapp.navigator.DefaultMiniAppNavigator
+import com.rakuten.tech.mobile.miniapp.navigator.MiniAppNavigator
 import com.rakuten.tech.mobile.miniapp.permission.MiniAppCustomPermission
 import com.rakuten.tech.mobile.miniapp.permission.MiniAppCustomPermissionCache
 import com.rakuten.tech.mobile.miniapp.permission.MiniAppCustomPermissionManager
@@ -23,6 +25,7 @@ abstract class MiniAppMessageBridge {
     private lateinit var customPermissionCache: MiniAppCustomPermissionCache
     private lateinit var miniAppInfo: MiniAppInfo
     private lateinit var activity: Activity
+    private var miniAppNavigator: MiniAppNavigator = DefaultMiniAppNavigator()
 
     /** Get provided id of mini app for any purpose. **/
     abstract fun getUniqueId(): String
@@ -90,6 +93,11 @@ abstract class MiniAppMessageBridge {
             ActionType.REQUEST_CUSTOM_PERMISSIONS.action -> onRequestCustomPermissions(jsonStr)
             ActionType.SHARE_INFO.action -> onShareContent(callbackObj.id, jsonStr)
         }
+    }
+
+    /** Set the url controller of miniapp. **/
+    fun setMiniAppNavigator(navigator: MiniAppNavigator) {
+        miniAppNavigator = navigator
     }
 
     private fun onGetUniqueId(callbackObj: CallbackObj) {
