@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.webkit.URLUtil
 import androidx.databinding.DataBindingUtil
 import com.rakuten.tech.mobile.miniapp.testapp.R
 import com.rakuten.tech.mobile.miniapp.testapp.databinding.MiniAppInputActivityBinding
@@ -35,8 +36,22 @@ class MiniAppInputActivity : MenuBaseActivity() {
             }
         })
 
-        binding.btnDisplay.setOnClickListener {
-            raceExecutor.run { display() }
+        validateAppUrl(binding.edtUrl.text.toString())
+        binding.edtUrl.addTextChangedListener(object: TextWatcher {
+            override fun afterTextChanged(s: Editable?) {}
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                validateAppUrl(s.toString())
+            }
+        })
+
+        binding.btnDisplayAppId.setOnClickListener {
+            raceExecutor.run { displayAppId() }
+        }
+        binding.btnDisplayUrl.setOnClickListener {
+            raceExecutor.run { displayUrl() }
         }
         binding.btnDisplayList.setOnClickListener {
             raceExecutor.run { launchActivity<MiniAppListActivity>() }
@@ -45,22 +60,43 @@ class MiniAppInputActivity : MenuBaseActivity() {
 
     private fun validateAppId(appId: String) {
         if (appId.isBlank())
-            binding.btnDisplay.isEnabled = false
+            binding.btnDisplayAppId.isEnabled = false
         else {
             if (appId.isInvalidUuid()) {
                 binding.edtAppId.error = getString(R.string.error_invalid_input)
-                binding.btnDisplay.isEnabled = false
+                binding.btnDisplayAppId.isEnabled = false
             } else {
                 binding.edtAppId.error = null
-                binding.btnDisplay.isEnabled = true
+                binding.btnDisplayAppId.isEnabled = true
             }
         }
     }
 
-    private fun display() {
+    private fun validateAppUrl(appUrl: String) {
+        if (appUrl.isBlank())
+            binding.btnDisplayUrl.isEnabled = false
+        else {
+            if (URLUtil.isValidUrl(appUrl)) {
+                binding.edtUrl.error = null
+                binding.btnDisplayUrl.isEnabled = true
+            } else {
+                binding.edtUrl.error = getString(R.string.error_invalid_input)
+                binding.btnDisplayUrl.isEnabled = false
+            }
+        }
+    }
+
+    private fun displayAppId() {
         MiniAppDisplayActivity.start(
             this,
             binding.edtAppId.text.toString().trim()
+        )
+    }
+
+    private fun displayUrl() {
+        MiniAppDisplayActivity.startUrl(
+            this,
+            binding.edtUrl.text.toString().trim()
         )
     }
 

@@ -10,14 +10,25 @@ import com.rakuten.tech.mobile.miniapp.MiniAppScheme
  * @param miniAppId The id of loading mini app.
  * @param activity The Activity contains webview. Pass the activity if you want to auto finish
  * the Activity with current external loading url as result data.
+ * @param customMiniAppUrl The url that was used to load the Mini App.
  **/
-class MiniAppExternalUrlLoader(miniAppId: String, private val activity: Activity? = null) {
+class MiniAppExternalUrlLoader(
+    miniAppId: String,
+    private val activity: Activity? = null,
+    private val customMiniAppUrl: String? = null
+) {
 
     companion object {
         const val returnUrlTag = "return_url_tag"
     }
 
-    private val miniAppScheme = MiniAppScheme(miniAppId)
+    private val miniAppScheme: MiniAppScheme = {
+        if (customMiniAppUrl != null) {
+            MiniAppScheme.schemeWithCustomUrl(customMiniAppUrl)
+        } else {
+            MiniAppScheme.schemeWithAppId(miniAppId)
+        }
+    }()
 
     /**
      * Determine to close the external loader.

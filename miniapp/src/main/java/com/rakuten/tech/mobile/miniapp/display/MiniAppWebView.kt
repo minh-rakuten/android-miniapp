@@ -17,6 +17,8 @@ import com.rakuten.tech.mobile.miniapp.js.MiniAppMessageBridge
 import com.rakuten.tech.mobile.miniapp.navigator.ExternalResultHandler
 import com.rakuten.tech.mobile.miniapp.permission.MiniAppCustomPermissionCache
 import java.io.File
+import kotlin.random.Random
+import kotlin.random.nextInt
 
 private const val SUB_DOMAIN_PATH = "miniapp"
 private const val MINI_APP_INTERFACE = "MiniAppAndroid"
@@ -29,11 +31,40 @@ internal class MiniAppWebView(
     val miniAppMessageBridge: MiniAppMessageBridge,
     var miniAppNavigator: MiniAppNavigator?,
     val hostAppUserAgentInfo: String,
-    val miniAppWebChromeClient: MiniAppWebChromeClient = MiniAppWebChromeClient(context, miniAppInfo),
+    val miniAppWebChromeClient: MiniAppWebChromeClient = MiniAppWebChromeClient(context, miniAppInfo.displayName),
     val miniAppCustomPermissionCache: MiniAppCustomPermissionCache
 ) : WebView(context), WebViewListener {
 
-    private val miniAppScheme = MiniAppScheme(miniAppInfo.id)
+    constructor(
+        context: Context,
+        miniAppTitle: String,
+        miniAppUrl: String,
+        miniAppMessageBridge: MiniAppMessageBridge,
+        miniAppNavigator: MiniAppNavigator?,
+        hostAppUserAgentInfo: String,
+        miniAppWebChromeClient: MiniAppWebChromeClient = MiniAppWebChromeClient(context, miniAppTitle),
+        miniAppCustomPermissionCache: MiniAppCustomPermissionCache
+    ) : this(
+            context,
+            "",
+            MiniAppInfo.empty(),
+            miniAppMessageBridge,
+            miniAppNavigator,
+            hostAppUserAgentInfo,
+            miniAppWebChromeClient,
+            miniAppCustomPermissionCache) {
+
+        this.miniAppUrl = miniAppUrl
+        this.miniAppTitle = miniAppTitle
+        miniAppScheme = MiniAppScheme.schemeWithCustomUrl(miniAppUrl)
+        miniAppId = "custom${Random.nextInt(0, Int.MAX_VALUE)}" // some id is needed to handle permissions
+        commonInit()
+    }
+
+    private var miniAppScheme = MiniAppScheme.schemeWithAppId(miniAppInfo.id)
+    private var miniAppId = miniAppInfo.id
+    private var miniAppUrl: String? = null
+    private var miniAppTitle = miniAppInfo.displayName
 
     @VisibleForTesting
     internal val externalResultHandler = ExternalResultHandler().apply {
@@ -46,6 +77,10 @@ internal class MiniAppWebView(
     }
 
     init {
+        commonInit()
+    }
+
+    private fun commonInit() {
         layoutParams = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
         )
@@ -57,7 +92,7 @@ internal class MiniAppWebView(
             activity = context as Activity,
             webViewListener = this,
             customPermissionCache = miniAppCustomPermissionCache,
-            miniAppInfo = miniAppInfo
+            miniAppId = miniAppId
         )
 
         settings.allowUniversalAccessFromFileURLs = true
@@ -70,11 +105,17 @@ internal class MiniAppWebView(
                 String.format("%s %s", settings.userAgentString, hostAppUserAgentInfo)
 
         setupMiniAppNavigator()
-        webViewClient = MiniAppWebViewClient(context, getWebViewAssetLoader(), miniAppNavigator!!,
-            externalResultHandler, miniAppScheme)
-        webChromeClient = miniAppWebChromeClient
+        if (miniAppId.isNotBlank() || miniAppUrl != null) {
+            webViewClient = MiniAppWebViewClient(
+                context,
+                if (miniAppUrl == null) getWebViewAssetLoader() else null,
+                miniAppNavigator!!,
+                externalResultHandler,
+                miniAppScheme)
+            webChromeClient = miniAppWebChromeClient
 
-        loadUrl(getLoadUrl())
+            loadUrl(getLoadUrl())
+        }
     }
 
     override fun onAttachedToWindow() {
@@ -145,7 +186,13 @@ internal class MiniAppWebView(
         .build()
 
     @VisibleForTesting
-    internal fun getLoadUrl() = "${miniAppScheme.miniAppCustomDomain}$SUB_DOMAIN_PATH/index.html"
+    internal fun getLoadUrl(): String {
+        return if (miniAppUrl != null) {
+            "$miniAppUrl/index.html"
+        } else {
+            "${miniAppScheme.miniAppCustomDomain}$SUB_DOMAIN_PATH/index.html"
+        }
+    }
 }
 
 internal interface WebViewListener {
