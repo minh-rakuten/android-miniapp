@@ -93,7 +93,7 @@ internal class RealMiniAppDisplay(
     private suspend fun provideMiniAppWebView(context: Context): MiniAppWebView =
         miniAppWebView ?: withContext(Dispatchers.Main) {
             if (miniAppUrl != null) {
-                miniAppWebView = MiniAppWebView(
+                miniAppWebView = MiniAppHttpWebView(
                     context = context,
                     miniAppTitle = "Mini app",
                     miniAppUrl = miniAppUrl!!,

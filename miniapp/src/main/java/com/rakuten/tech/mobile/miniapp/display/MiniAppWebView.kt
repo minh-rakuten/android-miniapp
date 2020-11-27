@@ -24,7 +24,7 @@ private const val SUB_DOMAIN_PATH = "miniapp"
 private const val MINI_APP_INTERFACE = "MiniAppAndroid"
 
 @SuppressLint("SetJavaScriptEnabled")
-internal class MiniAppWebView(
+internal open class MiniAppWebView(
     context: Context,
     val basePath: String,
     val miniAppInfo: MiniAppInfo,
@@ -35,36 +35,8 @@ internal class MiniAppWebView(
     val miniAppCustomPermissionCache: MiniAppCustomPermissionCache
 ) : WebView(context), WebViewListener {
 
-    constructor(
-        context: Context,
-        miniAppTitle: String,
-        miniAppUrl: String,
-        miniAppMessageBridge: MiniAppMessageBridge,
-        miniAppNavigator: MiniAppNavigator?,
-        hostAppUserAgentInfo: String,
-        miniAppWebChromeClient: MiniAppWebChromeClient = MiniAppWebChromeClient(context, miniAppTitle),
-        miniAppCustomPermissionCache: MiniAppCustomPermissionCache
-    ) : this(
-            context,
-            "",
-            MiniAppInfo.empty(),
-            miniAppMessageBridge,
-            miniAppNavigator,
-            hostAppUserAgentInfo,
-            miniAppWebChromeClient,
-            miniAppCustomPermissionCache) {
-
-        this.miniAppUrl = miniAppUrl
-        this.miniAppTitle = miniAppTitle
-        miniAppScheme = MiniAppScheme.schemeWithCustomUrl(miniAppUrl)
-        miniAppId = "custom${Random.nextInt(0, Int.MAX_VALUE)}" // some id is needed to handle permissions
-        commonInit()
-    }
-
-    private var miniAppScheme = MiniAppScheme.schemeWithAppId(miniAppInfo.id)
-    private var miniAppId = miniAppInfo.id
-    private var miniAppUrl: String? = null
-    private var miniAppTitle = miniAppInfo.displayName
+    protected var miniAppScheme = MiniAppScheme.schemeWithAppId(miniAppInfo.id)
+    protected var miniAppId = miniAppInfo.id
 
     @VisibleForTesting
     internal val externalResultHandler = ExternalResultHandler().apply {
@@ -80,7 +52,7 @@ internal class MiniAppWebView(
         commonInit()
     }
 
-    private fun commonInit() {
+    protected fun commonInit() {
         layoutParams = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
         )
@@ -105,17 +77,10 @@ internal class MiniAppWebView(
                 String.format("%s %s", settings.userAgentString, hostAppUserAgentInfo)
 
         setupMiniAppNavigator()
-        if (miniAppId.isNotBlank() || miniAppUrl != null) {
-            webViewClient = MiniAppWebViewClient(
-                context,
-                if (miniAppUrl == null) getWebViewAssetLoader() else null,
-                miniAppNavigator!!,
-                externalResultHandler,
-                miniAppScheme)
-            webChromeClient = miniAppWebChromeClient
+        webViewClient = getMiniAppWebViewClient()
+        webChromeClient = miniAppWebChromeClient
 
-            loadUrl(getLoadUrl())
-        }
+        loadUrl(getLoadUrl())
     }
 
     override fun onAttachedToWindow() {
@@ -185,14 +150,15 @@ internal class MiniAppWebView(
         )
         .build()
 
-    @VisibleForTesting
-    internal fun getLoadUrl(): String {
-        return if (miniAppUrl != null) {
-            "$miniAppUrl/index.html"
-        } else {
-            "${miniAppScheme.miniAppCustomDomain}$SUB_DOMAIN_PATH/index.html"
-        }
-    }
+    internal open fun getLoadUrl(): String = "${miniAppScheme.miniAppCustomDomain}$SUB_DOMAIN_PATH/index.html"
+
+    protected open fun getMiniAppWebViewClient(): MiniAppWebViewClient = MiniAppWebViewClient(
+        context,
+        getWebViewAssetLoader(),
+        miniAppNavigator!!,
+        externalResultHandler,
+        miniAppScheme
+    )
 }
 
 internal interface WebViewListener {
