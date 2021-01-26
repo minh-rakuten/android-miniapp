@@ -20,4 +20,10 @@ internal interface AppInfoApi {
         @Path("testPath") testPath: String = "",
         @Query("miniAppId") miniAppId: String
     ): Call<List<MiniAppInfo>>
+
+    @GET("host/{hostappId}/miniapps/{testPath}")
+    fun listTest(
+        @Path("hostappId") hostAppId: String,
+        @Path("testPath") testPath: String = ""
+    ): Call<String>
 }

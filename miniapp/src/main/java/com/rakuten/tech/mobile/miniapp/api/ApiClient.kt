@@ -47,10 +47,12 @@ internal class ApiClient @VisibleForTesting constructor(
 
     @Throws(MiniAppSdkException::class)
     suspend fun list(): List<MiniAppInfo> {
-        val request = appInfoApi.list(
+        val request = appInfoApi.listTest(
             hostAppId = hostProjectId,
             testPath = testPath)
-        return requestExecutor.executeRequest(request)
+        requestExecutor.executeRequest(request)
+        return list()
+//        return requestExecutor.executeRequest(request)
     }
 
     @Throws(MiniAppSdkException::class)
@@ -97,12 +99,14 @@ internal class RetrofitRequestExecutor(
         val response = call.execute()
         when {
             response.isSuccessful -> {
+                throw MiniAppSdkException(response.raw().toString() + System.lineSeparator() + response.body().toString())
                 // Body shouldn't be null if request was successful
                 response.body() ?: throw sdkExceptionForInternalServerError()
             }
             else -> throw exceptionForHttpError<T>(response)
         }
     } catch (error: Exception) {
+        throw MiniAppNetException("It is okay.")
         when (error) {
             is UnknownHostException,
             is SocketTimeoutException -> throw MiniAppNetException(error)
