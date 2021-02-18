@@ -1,10 +1,7 @@
 package com.rakuten.tech.mobile.miniapp
 
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.times
-import com.nhaarman.mockitokotlin2.verify
-import com.rakuten.tech.mobile.miniapp.api.ApiClient
-import com.rakuten.tech.mobile.miniapp.api.ApiClientRepository
+import com.nhaarman.mockitokotlin2.*
+import com.rakuten.tech.mobile.miniapp.api.*
 import com.rakuten.tech.mobile.miniapp.display.Displayer
 import com.rakuten.tech.mobile.miniapp.permission.MiniAppCustomPermissionCache
 import com.rakuten.tech.mobile.miniapp.js.MiniAppMessageBridge
@@ -21,7 +18,9 @@ import org.amshove.kluent.itReturns
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito
+import kotlin.test.assertEquals
 
+@Suppress("LargeClass")
 @ExperimentalCoroutinesApi
 class RealMiniAppSpec {
 
@@ -65,6 +64,12 @@ class RealMiniAppSpec {
         realMiniApp.create(" ", miniAppMessageBridge)
     }
 
+    @Test(expected = MiniAppSdkException::class)
+    fun `should throw exception when id of MiniAppInfo is blank`() = runBlockingTest {
+        val testMiniAppInfo = TEST_MA.copy(id = "")
+        realMiniApp.create(testMiniAppInfo, miniAppMessageBridge)
+    }
+
     @Test
     fun `should invoke from MiniAppDownloader and Displayer when calling create miniapp`() =
         runBlockingTest {
@@ -74,21 +79,29 @@ class RealMiniAppSpec {
 
             verify(miniAppDownloader, times(1)).getMiniApp(TEST_MA_ID)
             verify(displayer, times(1))
-                .createMiniAppDisplay(getMiniAppResult.first, getMiniAppResult.second,
-                    miniAppMessageBridge, null)
+                .createMiniAppDisplay(
+                    getMiniAppResult.first, getMiniAppResult.second,
+                    miniAppMessageBridge, null, miniAppCustomPermissionCache, ""
+                )
         }
 
     @Test
     fun `should create mini app display with correct passing external navigator`() =
         runBlockingTest {
             val getMiniAppResult = Pair(TEST_BASE_PATH, TEST_MA)
-            When calling miniAppDownloader.getMiniApp(TEST_MA_ID) itReturns getMiniAppResult
-            realMiniApp.create(TEST_MA_ID, miniAppMessageBridge, miniAppNavigator)
+            When calling miniAppDownloader.getMiniApp(TEST_MA) itReturns getMiniAppResult
+            realMiniApp.create(TEST_MA, miniAppMessageBridge, miniAppNavigator)
 
-            verify(miniAppDownloader, times(1)).getMiniApp(TEST_MA_ID)
+            verify(miniAppDownloader, times(1)).getMiniApp(TEST_MA)
             verify(displayer, times(1))
-                .createMiniAppDisplay(getMiniAppResult.first, getMiniAppResult.second,
-                    miniAppMessageBridge, miniAppNavigator)
+                .createMiniAppDisplay(
+                    getMiniAppResult.first,
+                    getMiniAppResult.second,
+                    miniAppMessageBridge,
+                    miniAppNavigator,
+                    miniAppCustomPermissionCache,
+                    ""
+                )
         }
 
     @Test
@@ -122,10 +135,9 @@ class RealMiniAppSpec {
         val miniApp = Mockito.spy(realMiniApp)
         val miniAppSdkConfig = MiniAppSdkConfig(
             baseUrl = TEST_URL_HTTPS_2,
-            isTestMode = true,
-            rasAppId = TEST_HA_ID_APP,
+            rasProjectId = TEST_HA_ID_PROJECT,
+            isPreviewMode = true,
             subscriptionKey = TEST_HA_SUBSCRIPTION_KEY,
-            hostAppVersionId = TEST_HA_ID_VERSION,
             hostAppUserAgentInfo = TEST_HA_NAME
         )
 
@@ -153,5 +165,54 @@ class RealMiniAppSpec {
         realMiniApp.setCustomPermissions(miniAppCustomPermission)
 
         verify(miniAppCustomPermissionCache).storePermissions(miniAppCustomPermission)
+    }
+
+    @Test
+    @Suppress("LongMethod")
+    fun `should invoke getDownloadedMiniAppList from downloader when listDownloadedWithCustomPermissions is calling`() {
+        realMiniApp.listDownloadedWithCustomPermissions()
+
+        verify(miniAppDownloader).getDownloadedMiniAppList()
+    }
+
+    @Test
+    @Suppress("LongMethod")
+    fun `should return the correct result when listDownloadedWithCustomPermissions is calling`() {
+        val miniAppInfo = MiniAppInfo(
+            "test_id",
+            "display_name",
+            "test_icon_url",
+            Version("test_version_tag", "test_version_id")
+        )
+        val downloadedList = listOf(miniAppInfo)
+        val miniAppCustomPermission = MiniAppCustomPermission(
+            "test_id",
+            listOf(
+                Pair(
+                    MiniAppCustomPermissionType.USER_NAME,
+                    MiniAppCustomPermissionResult.DENIED
+                ),
+                Pair(
+                    MiniAppCustomPermissionType.PROFILE_PHOTO,
+                    MiniAppCustomPermissionResult.DENIED
+                ),
+                Pair(
+                    MiniAppCustomPermissionType.CONTACT_LIST,
+                    MiniAppCustomPermissionResult.DENIED
+                )
+            )
+        )
+
+        doReturn(downloadedList).whenever(miniAppDownloader).getDownloadedMiniAppList()
+
+        downloadedList.forEach {
+            doReturn(miniAppCustomPermission).whenever(miniAppCustomPermissionCache)
+                .readPermissions(it.id)
+        }
+
+        val actual = realMiniApp.listDownloadedWithCustomPermissions()
+        val expected = listOf(Pair(miniAppInfo, miniAppCustomPermission))
+
+        assertEquals(expected, actual)
     }
 }

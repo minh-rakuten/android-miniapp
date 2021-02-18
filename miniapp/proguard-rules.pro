@@ -26,3 +26,6 @@
 }
 
 ##---------------End: proguard configuration for Gson  ----------
+
+-keep class com.google.android.gms.ads.MobileAds { *; }
+-keep class com.rakuten.tech.mobile.analytics.Event { *; }

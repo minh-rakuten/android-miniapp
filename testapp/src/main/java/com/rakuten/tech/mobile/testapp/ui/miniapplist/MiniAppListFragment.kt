@@ -9,6 +9,7 @@ import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.appcompat.widget.SearchView
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Observer
@@ -17,21 +18,21 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.rakuten.tech.mobile.miniapp.MiniAppInfo
 import com.rakuten.tech.mobile.miniapp.testapp.R
 import com.rakuten.tech.mobile.miniapp.testapp.databinding.MiniAppListFragmentBinding
-import com.rakuten.tech.mobile.testapp.adapter.MiniAppList
+import com.rakuten.tech.mobile.testapp.adapter.MiniAppListener
 import com.rakuten.tech.mobile.testapp.adapter.MiniAppListAdapter
 import com.rakuten.tech.mobile.testapp.helper.MiniAppListStore
 import com.rakuten.tech.mobile.testapp.launchActivity
 import com.rakuten.tech.mobile.testapp.ui.base.BaseFragment
 import com.rakuten.tech.mobile.testapp.ui.display.MiniAppDisplayActivity
+import com.rakuten.tech.mobile.testapp.ui.display.firsttime.PreloadMiniAppWindow
 import com.rakuten.tech.mobile.testapp.ui.input.MiniAppInputActivity
 import com.rakuten.tech.mobile.testapp.ui.settings.OnSearchListener
-import kotlinx.android.synthetic.main.mini_app_list_fragment.*
 import java.util.Locale
 
 import kotlin.collections.ArrayList
 
-class MiniAppListFragment : BaseFragment(), MiniAppList, OnSearchListener,
-    SearchView.OnQueryTextListener {
+class MiniAppListFragment : BaseFragment(), MiniAppListener, OnSearchListener,
+    SearchView.OnQueryTextListener, PreloadMiniAppWindow.PreloadMiniAppLaunchListener {
 
     companion object {
         val TAG = MiniAppListFragment::class.java.canonicalName
@@ -42,8 +43,10 @@ class MiniAppListFragment : BaseFragment(), MiniAppList, OnSearchListener,
     private lateinit var binding: MiniAppListFragmentBinding
     private lateinit var miniAppListAdapter: MiniAppListAdapter
     private lateinit var searchView: SearchView
+    private val preloadMiniAppWindow by lazy { PreloadMiniAppWindow(context!!, this) }
 
-    private var downloadedList: List<MiniAppInfo> = listOf()
+    private var fetchedMiniAppList: List<MiniAppInfo> = listOf()
+    private var selectedMiniAppInfo: MiniAppInfo? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -66,8 +69,8 @@ class MiniAppListFragment : BaseFragment(), MiniAppList, OnSearchListener,
 
     override fun onStart() {
         super.onStart()
-        swipeRefreshLayout.post {
-            swipeRefreshLayout.isRefreshing = true
+        binding.swipeRefreshLayout.post {
+            binding.swipeRefreshLayout.isRefreshing = true
             executeLoadingList()
         }
     }
@@ -78,7 +81,7 @@ class MiniAppListFragment : BaseFragment(), MiniAppList, OnSearchListener,
         viewModel =
             ViewModelProvider.NewInstanceFactory().create(MiniAppListViewModel::class.java).apply {
                 miniAppListData.observe(viewLifecycleOwner, Observer {
-                    swipeRefreshLayout.isRefreshing = false
+                    binding.swipeRefreshLayout.isRefreshing = false
                     addMiniAppList(it)
                     MiniAppListStore.instance.saveMiniAppList(it)
                 })
@@ -88,12 +91,12 @@ class MiniAppListFragment : BaseFragment(), MiniAppList, OnSearchListener,
                         updateEmptyView(list)
                     else {
                         addMiniAppList(list)
-                        swipeRefreshLayout.isRefreshing = false
+                        binding.swipeRefreshLayout.isRefreshing = false
                     }
                 })
             }
 
-        swipeRefreshLayout.setOnRefreshListener {
+        binding.swipeRefreshLayout.setOnRefreshListener {
             executeLoadingList()
             resetSearchBox()
         }
@@ -105,7 +108,7 @@ class MiniAppListFragment : BaseFragment(), MiniAppList, OnSearchListener,
     }
 
     private fun addMiniAppList(list: List<MiniAppInfo>) {
-        downloadedList = list
+        fetchedMiniAppList = list
         updateMiniAppListState(list)
     }
 
@@ -120,9 +123,8 @@ class MiniAppListFragment : BaseFragment(), MiniAppList, OnSearchListener,
 
     override fun onMiniAppItemClick(miniAppInfo: MiniAppInfo) {
         raceExecutor.run {
-            activity?.let {
-                MiniAppDisplayActivity.start(it, miniAppInfo)
-            }
+            selectedMiniAppInfo = miniAppInfo
+            activity?.let { preloadMiniAppWindow.initiate(miniAppInfo, miniAppInfo.id) }
         }
     }
 
@@ -150,6 +152,9 @@ class MiniAppListFragment : BaseFragment(), MiniAppList, OnSearchListener,
         }
         // by default, search menu is hidden, show search menu here
         itemSearch.isVisible = true
+
+        val closeButton = searchView.findViewById<ImageView>(R.id.search_close_btn)
+        closeButton.setOnClickListener { resetSearchBox() }
     }
 
     override fun onPrepareOptionsMenu(menu: Menu) {
@@ -170,26 +175,35 @@ class MiniAppListFragment : BaseFragment(), MiniAppList, OnSearchListener,
             return true
 
         updateMiniAppListState(produceSearchResult(newText))
+        binding.swipeRefreshLayout.isEnabled = newText.isNullOrEmpty()
+
         return true
     }
 
+    override fun onPreloadMiniAppResponse(isAccepted: Boolean) {
+        if (isAccepted)
+            selectedMiniAppInfo?.let { MiniAppDisplayActivity.start(context!!, it) }
+    }
+
     private fun produceSearchResult(newText: String?): List<MiniAppInfo> {
-        return downloadedList.filter { info ->
-            info.displayName.toLowerCase(Locale.ROOT)
-                .contains(newText.toString().toLowerCase(Locale.ROOT))
+        return fetchedMiniAppList.filter { info ->
+            val searchText = newText.toString().toLowerCase(Locale.ROOT)
+            info.displayName.toLowerCase(Locale.ROOT).contains(searchText) ||
+                    info.id.toLowerCase(Locale.ROOT).contains(searchText)
         }
     }
 
     private fun resetSearchBox() {
         if (searchView.query.isNotEmpty() || !searchView.isIconified) {
             searchView.onActionViewCollapsed()
+            binding.swipeRefreshLayout.isEnabled = true
         }
     }
 
     private fun updateEmptyView(collection: List<MiniAppInfo>) {
         if (collection.isEmpty())
-            emptyView.visibility = View.VISIBLE
+            binding.emptyView.visibility = View.VISIBLE
         else
-            emptyView.visibility = View.GONE
+            binding.emptyView.visibility = View.GONE
     }
 }

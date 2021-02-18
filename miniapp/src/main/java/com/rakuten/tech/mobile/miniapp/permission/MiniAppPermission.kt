@@ -1,7 +1,9 @@
 package com.rakuten.tech.mobile.miniapp.permission
 
-/** Type of miniapp permission. **/
-enum class MiniAppPermissionType(val type: String) {
+import androidx.annotation.Keep
+
+/** Type of miniapp device permission. **/
+enum class MiniAppDevicePermissionType(val type: String) {
     UNKNOWN("unknown"),
     LOCATION("location");
 
@@ -12,10 +14,12 @@ enum class MiniAppPermissionType(val type: String) {
 }
 
 /** Type of miniapp custom permission. **/
+@Keep
 enum class MiniAppCustomPermissionType(val type: String) {
     USER_NAME("rakuten.miniapp.user.USER_NAME"),
     PROFILE_PHOTO("rakuten.miniapp.user.PROFILE_PHOTO"),
     CONTACT_LIST("rakuten.miniapp.user.CONTACT_LIST"),
+    LOCATION("rakuten.miniapp.device.LOCATION"),
     UNKNOWN("UNKNOWN");
 
     internal companion object {
@@ -24,7 +28,7 @@ enum class MiniAppCustomPermissionType(val type: String) {
     }
 }
 
-internal enum class MiniAppPermissionResult(val type: String) {
+internal enum class MiniAppDevicePermissionResult(val type: String) {
     ALLOWED("Allowed"),
     DENIED("Denied");
 
@@ -35,6 +39,7 @@ internal enum class MiniAppPermissionResult(val type: String) {
 }
 
 /** Type of miniapp custom permission result. **/
+@Keep
 enum class MiniAppCustomPermissionResult {
     ALLOWED,
     DENIED,

@@ -3,10 +3,11 @@ apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-kapt'
 
+def property = { key ->
+    return System.getenv(key) ?: (project.hasProperty(key) ? project."$key" : null)
+}
+
 android {
-    def property = { key ->
-        return System.getenv(key) ?: (project.hasProperty(key) ? project."$key" : null)
-    }
 
     defaultConfig {
         versionCode 1
@@ -32,23 +33,34 @@ android {
         }
     }
 
-    def appName = "Mini App Sample"
-    def stagingManifestPlaceholders = [
-            baseUrl                 : property("MINIAPP_SERVER_BASE_URL") ?: "https://www.example.com/",
-            isTestMode              : property("IS_TEST_MODE") ?: false,
-            hostAppUserAgentInfo    : property("HOST_APP_UA_INFO") ?: "MiniApp Demo App/$project.version",
-            hostAppVersion          : property("HOST_APP_VERSION") ?: "test-host-app-version",
-            appId                   : property("HOST_APP_ID") ?: "test-host-app-id",
-            subscriptionKey         : property("HOST_APP_SUBSCRIPTION_KEY") ?: "test-subs-key"
+    def defaultAppName = "Mini App Sample"
+    def commonPlaceholders = [
+            appCenterSecret         : property("APPCENTER_SECRET") ?: "",
+            ratAcc                  : property("ANALYTICS_ACC") ?: "0",
+            ratAid                  : property("ANALYTICS_AID") ?: "0",
     ]
+    def debugManifestPlaceholders = [
+            baseUrl                 : property("MINIAPP_SERVER_BASE_URL") ?: "https://www.example.com/",
+            isPreviewMode           : property("IS_PREVIEW_MODE") ?: true,
+            hostAppUserAgentInfo    : property("HOST_APP_UA_INFO") ?: "MiniApp Demo App/$project.version",
+            projectId               : property("HOST_PROJECT_ID") ?: "test-host-project-id",
+            subscriptionKey         : property("HOST_APP_SUBSCRIPTION_KEY") ?: "test-subs-key",
+            adMobAppId              : property("ADMOB_APP_ID") ?: "",
+            appName                 : defaultAppName + " DEBUG",
+            ratEndpoint             : property("ANALYTICS_ENDPOINT") ?: "https://www.example.com/"
+    ] + commonPlaceholders
+    def stagingManifestPlaceholders = debugManifestPlaceholders.clone()
+    stagingManifestPlaceholders.appName = defaultAppName + " STG"
     def prodManifestPlaceholders = [
             baseUrl                 : property("MINIAPP_PROD_SERVER_BASE_URL") ?: "https://www.example.com/",
-            isTestMode              : property("PROD_IS_TEST_MODE") ?: false,
+            isPreviewMode           : property("PROD_IS_PREVIEW_MODE") ?: true,
             hostAppUserAgentInfo    : property("HOST_APP_PROD_UA_INFO") ?: "MiniApp Demo App/$project.version",
-            hostAppVersion          : property("HOST_APP_PROD_VERSION") ?: "test-host-app-version",
-            appId                   : property("HOST_APP_PROD_ID") ?: "test-host-app-id",
-            subscriptionKey         : property("HOST_APP_PROD_SUBSCRIPTION_KEY") ?: "test-subs-key"
-    ]
+            projectId               : property("HOST_PROJECT_PROD_ID") ?: "test-host-project-id",
+            subscriptionKey         : property("HOST_APP_PROD_SUBSCRIPTION_KEY") ?: "test-subs-key",
+            adMobAppId              : property("PROD_ADMOB_APP_ID") ?: "",
+            appName                 : defaultAppName,
+            ratEndpoint             : property("PROD_ANALYTICS_ENDPOINT") ?: "https://www.example.com/"
+    ] + commonPlaceholders
 
     def buildVersion = System.getenv("CIRCLE_BUILD_NUM") ?: new Date().format('yyMMddHHmm')
 
@@ -56,20 +68,22 @@ android {
         debug {
             applicationIdSuffix '.debug'
             versionNameSuffix '-DEBUG'
-            resValue "string", "app_name", "$appName DEBUG"
             resValue "string", "build_version", buildVersion
             resValue "string", "miniapp_sdk_version", project.version
+            resValue "string", "appcenter_secret", debugManifestPlaceholders.appCenterSecret
             debuggable true
             minifyEnabled false
+            buildConfigField 'boolean', 'ENABLE_APPCENTER_CRASHLYTICS', 'false'
 
-            manifestPlaceholders = stagingManifestPlaceholders
+            manifestPlaceholders = debugManifestPlaceholders
         }
         release {
-            resValue "string", "app_name", appName
             resValue "string", "build_version", buildVersion
             resValue "string", "miniapp_sdk_version", project.version
+            resValue "string", "appcenter_secret", prodManifestPlaceholders.appCenterSecret
             debuggable true
             minifyEnabled true
+            buildConfigField 'boolean', 'ENABLE_APPCENTER_CRASHLYTICS', 'true'
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
             manifestPlaceholders = prodManifestPlaceholders
@@ -78,7 +92,16 @@ android {
             initWith release
             applicationIdSuffix '.staging'
             versionNameSuffix "-STG-build-$buildVersion"
-            resValue "string", "app_name", "$appName STG"
+            buildConfigField 'boolean', 'ENABLE_APPCENTER_CRASHLYTICS', 'true'
+            matchingFallbacks = ['release', 'debug']
+
+            manifestPlaceholders = stagingManifestPlaceholders
+        }
+        rc {
+            initWith release
+            applicationIdSuffix '.rc'
+            versionNameSuffix "-RC-build-$buildVersion"
+            buildConfigField 'boolean', 'ENABLE_APPCENTER_CRASHLYTICS', 'true'
             matchingFallbacks = ['release', 'debug']
 
             manifestPlaceholders = stagingManifestPlaceholders
@@ -104,15 +127,24 @@ dependencies {
     implementation "androidx.core:core-ktx:$androidx_coreKtx"
     implementation "androidx.lifecycle:lifecycle-extensions:$androidx_lifecycle"
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$androidx_lifecycle"
+    implementation "androidx.activity:activity:$androidx_activity"
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     implementation "com.google.code.gson:gson:$gson"
+    if (property("GITHUB_USERNAME") != null) {
+        implementation "com.rakuten.tech.mobile.analytics:analytics:$analytics_sdk"
+    } else {
+        implementation project(':analytics')
+    }
 
     implementation "com.github.bumptech.glide:glide:$glide"
     annotationProcessor "com.github.bumptech.glide:compiler:$glide"
     implementation "com.google.android.material:material:$material"
     implementation "androidx.swiperefreshlayout:swiperefreshlayout:$swipe_refresh_layout"
     implementation "androidx.recyclerview:recyclerview:$recyclerview"
+    implementation 'de.hdodenhof:circleimageview:3.1.0'
+    implementation "com.google.android.gms:play-services-ads:$google_ads"
+    implementation "com.microsoft.appcenter:appcenter-crashes:$appCenterSdkVersion"
 
     testImplementation "junit:junit:$junit"
 }

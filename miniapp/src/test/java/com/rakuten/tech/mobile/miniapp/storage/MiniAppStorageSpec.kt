@@ -62,7 +62,7 @@ class MiniAppStorageSpec {
         val oldFile2 = tempFolder.newFile()
         val latestPackage = tempFolder.newFolder(TEST_ID_MINIAPP_VERSION)
 
-        miniAppStorage.removeOutdatedVersionApp(
+        miniAppStorage.removeVersions(
             TEST_ID_MINIAPP,
             TEST_ID_MINIAPP_VERSION,
             tempFolder.root.path)
@@ -70,6 +70,21 @@ class MiniAppStorageSpec {
         oldFile1.exists() shouldBe false
         oldFile2.exists() shouldBe false
         latestPackage.exists() shouldBe true
+    }
+
+    @Test
+    fun `should delete all file data for the specified app id`() = runBlockingTest {
+        val oldFile1 = tempFolder.newFolder("old_package_id_1")
+        val oldFile2 = tempFolder.newFile()
+        val latestPackage = tempFolder.newFolder(TEST_ID_MINIAPP_VERSION)
+
+        miniAppStorage.removeApp(
+            TEST_ID_MINIAPP,
+            tempFolder.root.path)
+
+        oldFile1.exists() shouldBe false
+        oldFile2.exists() shouldBe false
+        latestPackage.exists() shouldBe false
     }
 
     @Test

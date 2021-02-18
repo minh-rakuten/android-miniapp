@@ -8,6 +8,9 @@ import android.net.Uri
 import androidx.annotation.VisibleForTesting
 import com.rakuten.tech.mobile.manifestconfig.annotations.ManifestConfig
 import com.rakuten.tech.mobile.manifestconfig.annotations.MetaData
+import com.rakuten.tech.mobile.miniapp.analytics.Actype
+import com.rakuten.tech.mobile.miniapp.analytics.Etype
+import com.rakuten.tech.mobile.miniapp.analytics.MiniAppAnalytics
 
 /**
  * This initializes the SDK module automatically as the Content Providers are initialized
@@ -28,16 +31,10 @@ class MiniappSdkInitializer : ContentProvider() {
         fun baseUrl(): String
 
         /**
-         * Whether the sdk is running in Testing mode.
+         * Whether the sdk is running in Preview mode.
          **/
-        @MetaData(key = "com.rakuten.tech.mobile.miniapp.IsTestMode")
-        fun isTestMode(): Boolean
-
-        /**
-         * Host app version for the mini app backend.
-         **/
-        @MetaData(key = "com.rakuten.tech.mobile.miniapp.HostAppVersion")
-        fun hostAppVersion(): String
+        @MetaData(key = "com.rakuten.tech.mobile.miniapp.IsPreviewMode")
+        fun isPreviewMode(): Boolean
 
         /**
          * This user agent specific info will be appended to the default user-agent.
@@ -48,10 +45,10 @@ class MiniappSdkInitializer : ContentProvider() {
         fun hostAppUserAgentInfo(): String
 
         /**
-         * App Id assigned to host App.
+         * Project Id assigned to host App.
          **/
-        @MetaData(key = "com.rakuten.tech.mobile.ras.AppId")
-        fun rasAppId(): String
+        @MetaData(key = "com.rakuten.tech.mobile.ras.ProjectId")
+        fun rasProjectId(): String
 
         /**
          * Subscription Key for the registered host app.
@@ -66,17 +63,30 @@ class MiniappSdkInitializer : ContentProvider() {
 
         MiniApp.init(
             context = context,
-            miniAppSdkConfig = MiniAppSdkConfig(
-                baseUrl = manifestConfig.baseUrl(),
-                rasAppId = manifestConfig.rasAppId(),
-                subscriptionKey = manifestConfig.subscriptionKey(),
-                hostAppVersionId = manifestConfig.hostAppVersion(),
-                hostAppUserAgentInfo = manifestConfig.hostAppUserAgentInfo(),
-                isTestMode = manifestConfig.isTestMode()
-            )
+            miniAppSdkConfig = createMiniAppSdkConfig(manifestConfig)
         )
 
+        // init and send analytics tracking when Host App is launched with miniapp sdk.
+        executeMiniAppAnalytics(manifestConfig.rasProjectId())
+
         return true
+    }
+
+    private fun createMiniAppSdkConfig(manifestConfig: AppManifestConfig) = MiniAppSdkConfig(
+        baseUrl = manifestConfig.baseUrl(),
+        rasProjectId = manifestConfig.rasProjectId(),
+        subscriptionKey = manifestConfig.subscriptionKey(),
+        hostAppUserAgentInfo = manifestConfig.hostAppUserAgentInfo(),
+        isPreviewMode = manifestConfig.isPreviewMode()
+    )
+
+    private fun executeMiniAppAnalytics(rasProjId: String) {
+        MiniAppAnalytics.init(rasProjectId = rasProjId)
+        MiniAppAnalytics.instance?.sendAnalytics(
+            eType = Etype.APPEAR,
+            actype = Actype.HOST_LAUNCH,
+            miniAppInfo = null
+        )
     }
 
     @VisibleForTesting

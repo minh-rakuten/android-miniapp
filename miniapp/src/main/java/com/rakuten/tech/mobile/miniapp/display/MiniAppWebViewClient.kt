@@ -1,14 +1,12 @@
 package com.rakuten.tech.mobile.miniapp.display
 
 import android.content.Context
-import android.content.Intent
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebResourceError
 import androidx.annotation.VisibleForTesting
-import androidx.core.net.toUri
 import androidx.webkit.WebViewAssetLoader
 import com.rakuten.tech.mobile.miniapp.MiniAppScheme
 import com.rakuten.tech.mobile.miniapp.navigator.ExternalResultHandler
@@ -16,14 +14,14 @@ import com.rakuten.tech.mobile.miniapp.navigator.MiniAppNavigator
 
 internal class MiniAppWebViewClient(
     private val context: Context,
-    @VisibleForTesting internal val loader: WebViewAssetLoader,
-    private val miniAppNavigator: MiniAppNavigator?,
+    @VisibleForTesting internal val loader: WebViewAssetLoader?,
+    private val miniAppNavigator: MiniAppNavigator,
     private val externalResultHandler: ExternalResultHandler,
     private val miniAppScheme: MiniAppScheme
 ) : WebViewClient() {
 
     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-        val response = loader.shouldInterceptRequest(request.url)
+        val response = loader?.shouldInterceptRequest(request.url)
         interceptMimeType(response, request)
         return response
     }
@@ -33,14 +31,11 @@ internal class MiniAppWebViewClient(
         if (request.url != null) {
             val requestUrl = request.url.toString()
             if (requestUrl.startsWith("tel:")) {
-                openPhoneDialer(requestUrl)
+                miniAppScheme.openPhoneDialer(context, requestUrl)
                 shouldCancelLoading = true
             } else if (!miniAppScheme.isMiniAppUrl(requestUrl)) {
-                // check if there is navigator implementation on miniapp.
-                if (miniAppNavigator != null) {
-                    miniAppNavigator.openExternalUrl(requestUrl, externalResultHandler)
-                    shouldCancelLoading = true
-                }
+                miniAppNavigator.openExternalUrl(requestUrl, externalResultHandler)
+                shouldCancelLoading = true
             }
         }
         return shouldCancelLoading
@@ -77,11 +72,5 @@ internal class MiniAppWebViewClient(
             { view.loadUrl(requestUrl) },
             100
         )
-    }
-
-    @VisibleForTesting
-    internal fun openPhoneDialer(requestUrl: String) = Intent(Intent.ACTION_DIAL).let {
-        it.data = requestUrl.toUri()
-        context.startActivity(it)
     }
 }

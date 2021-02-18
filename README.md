@@ -21,7 +21,7 @@ Next, you must define a few settings used by the Sample App. These can be define
 
 ```
 MINIAPP_SERVER_BASE_URL=https://www.example.com/
-HOST_APP_ID=test-host-app-id
+HOST_PROJECT_ID=test-host-project-id
 HOST_APP_SUBSCRIPTION_KEY=test-subs-key
 HOST_APP_UA_INFO=MiniAppDemoApp/1.0.0-SNAPSHOT
 HOST_APP_VERSION=test-host-app-version
@@ -47,7 +47,7 @@ Next, you must define the prod settings for the Sample App as either environment
 
 ```
 MINIAPP_PROD_SERVER_BASE_URL=https://www.example.com/
-HOST_APP_PROD_ID=test-host-app-id
+HOST_PROJECT_PROD_ID=test-host-project-id
 HOST_APP_PROD_SUBSCRIPTION_KEY=test-subs-key
 HOST_APP_PROD_UA_INFO=MiniAppDemoApp/1.0.0
 HOST_APP_PROD_VERSION=test-host-app-version
@@ -62,6 +62,40 @@ $ ./gradlew assembleRelease
 ## How to Test the Sample App
 
 We currently don't provide an API for public use, so you must provide your own API.
+Alternatively you can launch your MiniApp on a local sever and then use 'Load by URL' option in the Sample App.
+
+## Writing and generating documentation
+
+Our documentation is hosted on Github Pages using the `gh-pages` branch of this repo. So this means that the docs are hosted as markdown and then Github Pages generates HTML using Jekyll. The documentation has two parts: a userguide and the API docs. The userguide is generated from [USERGUIDE.md](miniapp/USERGUIDE.md) and the API docs are generated using Dokka.
+
+For the most part, you can use standard markdown in the userguide, but please note the following:
+
+- If you wish to use a `<details>` tag for an expandable section, then you must use the following format (note that the closing `</summary>` tag is on a new line):
+```xml
+<details><summary markdown="span">Title goes here
+</summary>
+
+    Content goes here.
+</details>
+```
+
+### How to generate KDocs SDK documentation locally
+
+You may want to generate the SDK documentation locally so that you can ensure that the generated docs look correct. We use Dokka for this, so you can run the following command, and the generated docs will be output at `miniapp/build/publishableDocs` in the markdown format. 
+
+```
+$ ./gradlew generatePublishableDocs
+```
+
+The docs are hosted on Github Pages in markdown, and therefore the HTML version is only generated after the docs are published to Github. If you wish to preview the HTML version of the docs, you can do so by copying the markdown files to the `gh-pages` branch and locally building the HTML:
+
+```
+$ ./gradlew generatePublishableDocs
+$ git checkout gh-pages
+$ cp -r miniapp/build/publishableDocs/docs/ ./
+$ bundle install
+$ bundle exec jekyll serve
+```
 
 ## Continuous Integration and Deployment
 

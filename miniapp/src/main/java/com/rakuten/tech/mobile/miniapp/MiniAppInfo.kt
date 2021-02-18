@@ -3,6 +3,7 @@ package com.rakuten.tech.mobile.miniapp
 import android.os.Parcelable
 import com.google.gson.annotations.SerializedName
 import kotlinx.android.parcel.Parcelize
+import java.util.UUID
 
 /**
  * This represents a Mini App entity.
@@ -18,7 +19,11 @@ data class MiniAppInfo(
     @SerializedName("displayName") val displayName: String,
     @SerializedName("icon") val icon: String,
     @SerializedName("version") val version: Version
-) : Parcelable
+) : Parcelable {
+    companion object {
+        internal fun forUrl() = MiniAppInfo(UUID.randomUUID().toString(), "", "", Version("", ""))
+    }
+}
 
 /**
  * This represents a version entity of a Mini App.

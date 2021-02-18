@@ -5,31 +5,37 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
-import android.widget.Toast
-import androidx.appcompat.widget.AppCompatEditText
 import androidx.appcompat.widget.Toolbar
+import androidx.databinding.DataBindingUtil
 import com.rakuten.tech.mobile.miniapp.MiniApp
 import com.rakuten.tech.mobile.miniapp.MiniAppSdkException
 import com.rakuten.tech.mobile.miniapp.testapp.R
+import com.rakuten.tech.mobile.miniapp.testapp.databinding.SettingsMenuActivityBinding
 import com.rakuten.tech.mobile.testapp.AppScreen.MINI_APP_INPUT_ACTIVITY
 import com.rakuten.tech.mobile.testapp.AppScreen.MINI_APP_LIST_ACTIVITY
+import com.rakuten.tech.mobile.testapp.helper.isInputEmpty
 import com.rakuten.tech.mobile.testapp.helper.isInvalidUuid
+import com.rakuten.tech.mobile.testapp.helper.showAlertDialog
 import com.rakuten.tech.mobile.testapp.launchActivity
 import com.rakuten.tech.mobile.testapp.ui.base.BaseActivity
 import com.rakuten.tech.mobile.testapp.ui.input.MiniAppInputActivity
 import com.rakuten.tech.mobile.testapp.ui.miniapplist.MiniAppListActivity
+import com.rakuten.tech.mobile.testapp.ui.permission.MiniAppDownloadedListActivity
 import com.rakuten.tech.mobile.testapp.ui.settings.MenuBaseActivity.Companion.MENU_SCREEN_NAME
-import kotlinx.android.synthetic.main.settings_menu_activity.*
+import com.rakuten.tech.mobile.testapp.ui.userdata.AccessTokenActivity
+import com.rakuten.tech.mobile.testapp.ui.userdata.ContactListActivity
+import com.rakuten.tech.mobile.testapp.ui.userdata.ProfileSettingsActivity
 import kotlinx.coroutines.launch
+import java.net.URL
 import kotlin.properties.Delegates
 
 class SettingsMenuActivity : BaseActivity() {
 
     private lateinit var settings: AppSettings
     private lateinit var settingsProgressDialog: SettingsProgressDialog
+    private lateinit var binding: SettingsMenuActivityBinding
 
     private var saveViewEnabled by Delegates.observable(true) { _, old, new ->
         if (new != old) {
@@ -50,7 +56,7 @@ class SettingsMenuActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         settings = AppSettings.instance
-        setContentView(R.layout.settings_menu_activity)
+        binding = DataBindingUtil.setContentView(this, R.layout.settings_menu_activity)
 
         initializeActionBar()
         settingsProgressDialog = SettingsProgressDialog(this)
@@ -81,9 +87,10 @@ class SettingsMenuActivity : BaseActivity() {
         settingsProgressDialog.show()
 
         updateSettings(
-            editAppId.text.toString(),
-            editSubscriptionKey.text.toString(),
-            switchTestMode.isChecked
+            binding.editProjectId.text.toString(),
+            binding.editSubscriptionKey.text.toString(),
+            binding.editParametersUrl.text.toString(),
+            binding.switchPreviewMode.isChecked
         )
     }
 
@@ -94,13 +101,28 @@ class SettingsMenuActivity : BaseActivity() {
     }
 
     private fun renderAppSettingsScreen() {
-        textInfo.text = createBuildInfo()
-        editAppId.setText(settings.appId)
-        editSubscriptionKey.setText(settings.subscriptionKey)
-        switchTestMode.isChecked = settings.isTestMode
+        binding.textInfo.text = createBuildInfo()
+        binding.editProjectId.setText(settings.projectId)
+        binding.editSubscriptionKey.setText(settings.subscriptionKey)
+        binding.editParametersUrl.setText(settings.urlParameters)
+        binding.switchPreviewMode.isChecked = settings.isPreviewMode
 
-        editAppId.addTextChangedListener(settingsTextWatcher)
-        editSubscriptionKey.addTextChangedListener(settingsTextWatcher)
+        binding.editProjectId.addTextChangedListener(settingsTextWatcher)
+        binding.editSubscriptionKey.addTextChangedListener(settingsTextWatcher)
+
+        binding.buttonProfile.setOnClickListener {
+            ProfileSettingsActivity.start(this@SettingsMenuActivity)
+        }
+
+        binding.buttonContacts.setOnClickListener {
+            ContactListActivity.start(this@SettingsMenuActivity)
+        }
+
+        binding.buttonCustomPermissions.setOnClickListener {
+            MiniAppDownloadedListActivity.start(this@SettingsMenuActivity)
+        }
+
+        binding.buttonAccessToken.setOnClickListener { AccessTokenActivity.start(this@SettingsMenuActivity) }
 
         validateInputIDs()
     }
@@ -111,54 +133,84 @@ class SettingsMenuActivity : BaseActivity() {
         return "Build $sdkVersion - $buildVersion"
     }
 
-    internal fun validateInputIDs() {
-        val isAppIdInvalid = editAppId.text.toString().isInvalidUuid()
+    private fun validateInputIDs() {
+        val isAppIdInvalid = binding.editProjectId.text.toString().isInvalidUuid()
 
-        saveViewEnabled = !(isInputEmpty(editAppId)
-                || isInputEmpty(editSubscriptionKey)
+        saveViewEnabled = !(isInputEmpty(binding.editProjectId)
+                || isInputEmpty(binding.editSubscriptionKey)
                 || isAppIdInvalid)
 
-        if (isInputEmpty(editAppId) || isAppIdInvalid) {
-            editAppId.error = getString(R.string.error_invalid_input)
+        if (isInputEmpty(binding.editProjectId) || isAppIdInvalid) {
+            binding.editProjectId.error = getString(R.string.error_invalid_input)
         }
 
-        if (isInputEmpty(editSubscriptionKey)) {
-            editSubscriptionKey.error = getString(R.string.error_invalid_input)
+        if (isInputEmpty(binding.editSubscriptionKey)) {
+            binding.editSubscriptionKey.error = getString(R.string.error_invalid_input)
         }
     }
 
-    private fun isInputEmpty(input: AppCompatEditText): Boolean {
-        return input.text.toString().isEmpty() || input.text.toString().isBlank()
-    }
-
-    private fun updateSettings(appId: String, subscriptionKey: String, isTestMode: Boolean) {
-        val appIdHolder = settings.appId
+    private fun updateSettings(
+        projectId: String,
+        subscriptionKey: String,
+        urlParameters: String,
+        isPreviewMode: Boolean
+    ) {
+        val appIdHolder = settings.projectId
         val subscriptionKeyHolder = settings.subscriptionKey
-        val isTestModeHolder = settings.isTestMode
-        settings.appId = appId
+        val urlParametersHolder = settings.urlParameters
+        val isPreviewModeHolder = settings.isPreviewMode
+        settings.projectId = projectId
         settings.subscriptionKey = subscriptionKey
-        settings.isTestMode = isTestMode
+        settings.urlParameters = urlParameters
+        settings.isPreviewMode = isPreviewMode
 
         launch {
             try {
                 MiniApp.instance(AppSettings.instance.miniAppSettings).listMiniApp()
+                URL("https://www.test-param.com?$urlParameters").toURI()
+
                 settings.isSettingSaved = true
                 runOnUiThread {
                     settingsProgressDialog.cancel()
                     navigateToPreviousScreen()
                 }
             } catch (error: MiniAppSdkException) {
-                settings.appId = appIdHolder
-                settings.subscriptionKey = subscriptionKeyHolder
-                settings.isTestMode = isTestModeHolder
-                runOnUiThread {
-                    settingsProgressDialog.cancel()
-                    val toast =
-                        Toast.makeText(this@SettingsMenuActivity, error.message, Toast.LENGTH_LONG)
-                    toast.setGravity(Gravity.BOTTOM, 0, 100)
-                    toast.show()
-                }
+                onUpdateError(
+                    appIdHolder,
+                    subscriptionKeyHolder,
+                    urlParametersHolder,
+                    isPreviewModeHolder,
+                    "MiniApp SDK",
+                    error.message.toString()
+                )
+            } catch (error: Exception) {
+                onUpdateError(
+                    appIdHolder,
+                    subscriptionKeyHolder,
+                    urlParametersHolder,
+                    isPreviewModeHolder,
+            "URL parameter",
+                    error.message.toString()
+                )
             }
+        }
+    }
+
+    private fun onUpdateError(
+            appIdHolder: String,
+            subscriptionKeyHolder: String,
+            urlParametersHolder: String,
+            isPreviewModeHolder: Boolean,
+            errTitle: String,
+            errMsg: String
+    ) {
+        settings.projectId = appIdHolder
+        settings.subscriptionKey = subscriptionKeyHolder
+        settings.urlParameters = urlParametersHolder
+        settings.isPreviewMode = isPreviewModeHolder
+        runOnUiThread {
+            settingsProgressDialog.cancel()
+            showAlertDialog(this@SettingsMenuActivity, errTitle, errMsg)
         }
     }
 
