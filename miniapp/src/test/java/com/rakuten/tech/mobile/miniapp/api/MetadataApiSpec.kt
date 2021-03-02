@@ -6,12 +6,13 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.amshove.kluent.shouldContain
 import org.amshove.kluent.shouldEndWith
+import org.amshove.kluent.shouldEqual
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-open class ManifestApiSpec private constructor(
+open class MetadataApiSpec private constructor(
     internal val mockServer: MockWebServer
 ) : MockWebServerBaseSpec(mockServer) {
 
@@ -19,6 +20,12 @@ open class ManifestApiSpec private constructor(
 
     private lateinit var baseUrl: String
     internal lateinit var retrofit: Retrofit
+
+    val requiredPermissionObj =
+        listOf(MetadataPermissionObj("rakuten.miniapp.user.USER_NAME", "reason"))
+    val optionalPermissionObj =
+        listOf(MetadataPermissionObj("rakuten.miniapp.user.PROFILE_PHOTO", "reason"))
+    val metadataResponse = MetadataResponse(requiredPermissionObj, optionalPermissionObj, hashMapOf())
 
     @Before
     fun baseSetup() {
@@ -30,28 +37,28 @@ open class ManifestApiSpec private constructor(
     }
 
     internal fun createResponse(
-        files: List<String> = listOf(TEST_URL_HTTPS_1, TEST_URL_HTTPS_2)
+        metadata: MetadataResponse = metadataResponse
     ): MockResponse = MockResponse().setBody(
         Gson().toJson(
             hashMapOf(
-                "manifest" to files
+                "bundleManifest" to metadata
             )
         )
     )
 }
 
-class ManifestApiRequestSpec : ManifestApiSpec() {
+class MetadataApiRequestSpec : MetadataApiSpec() {
 
     @Test
-    fun `should fetch files information of a mini app using the 'manifest' endpoint`() {
-        executeManifestCallByRetrofit()
+    fun `should fetch metadata of a mini app using the 'metadata' endpoint`() {
+        executeMetadataCallByRetrofit()
         val requestUrl = mockServer.takeRequest().requestUrl!!
-        requestUrl.encodedPath shouldEndWith "manifest"
+        requestUrl.encodedPath shouldEndWith "metadata"
     }
 
     @Test
-    fun `should fetch files information of a specific mini app version`() {
-        executeManifestCallByRetrofit()
+    fun `should fetch metadata of a specific mini app version`() {
+        executeMetadataCallByRetrofit()
         mockServer.takeRequest().path!! shouldContain
                 "miniapp/$TEST_ID_MINIAPP/version/$TEST_ID_MINIAPP_VERSION/"
     }
@@ -59,8 +66,8 @@ class ManifestApiRequestSpec : ManifestApiSpec() {
     @Test
     fun `should have test endpoint when in test mode`() {
         mockServer.enqueue(createResponse())
-        retrofit.create(ManifestApi::class.java)
-            .fetchFileListFromManifest(
+        retrofit.create(MetadataApi::class.java)
+            .fetchMetadata(
                 hostId = TEST_HA_ID_PROJECT,
                 miniAppId = TEST_ID_MINIAPP,
                 versionId = TEST_ID_MINIAPP_VERSION,
@@ -69,10 +76,10 @@ class ManifestApiRequestSpec : ManifestApiSpec() {
         mockServer.takeRequest().path!! shouldContain "test"
     }
 
-    private fun executeManifestCallByRetrofit() {
+    private fun executeMetadataCallByRetrofit() {
         mockServer.enqueue(createResponse())
-        retrofit.create(ManifestApi::class.java)
-            .fetchFileListFromManifest(
+        retrofit.create(MetadataApi::class.java)
+            .fetchMetadata(
                 hostId = TEST_HA_ID_PROJECT,
                 miniAppId = TEST_ID_MINIAPP,
                 versionId = TEST_ID_MINIAPP_VERSION
@@ -80,15 +87,15 @@ class ManifestApiRequestSpec : ManifestApiSpec() {
     }
 }
 
-class ManifestApiResponseSpec : ManifestApiSpec() {
+class MetadataApiResponseSpec : MetadataApiSpec() {
 
-    private lateinit var manifestEntity: ManifestEntity
+    private lateinit var metadataEntity: MetadataEntity
 
     @Before
     fun setup() {
         mockServer.enqueue(createResponse())
-        manifestEntity = retrofit.create(ManifestApi::class.java)
-            .fetchFileListFromManifest(
+        metadataEntity = retrofit.create(MetadataApi::class.java)
+            .fetchMetadata(
                 hostId = TEST_HA_ID_PROJECT,
                 miniAppId = TEST_ID_MINIAPP,
                 versionId = TEST_ID_MINIAPP_VERSION
@@ -97,8 +104,7 @@ class ManifestApiResponseSpec : ManifestApiSpec() {
     }
 
     @Test
-    fun `should parse the 'files' from response`() {
-        manifestEntity.files shouldContain TEST_URL_HTTPS_1
-        manifestEntity.files shouldContain TEST_URL_HTTPS_2
+    fun `should parse the metadata from response`() {
+        metadataEntity.metadata shouldEqual metadataResponse
     }
 }
