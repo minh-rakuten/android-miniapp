@@ -6,7 +6,7 @@ import android.content.SharedPreferences
 import androidx.appcompat.app.AlertDialog
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.nhaarman.mockitokotlin2.*
+import org.mockito.kotlin.*
 import com.rakuten.tech.mobile.miniapp.TEST_CALLBACK_ID
 import com.rakuten.tech.mobile.miniapp.TestActivity
 import com.rakuten.tech.mobile.miniapp.js.MiniAppBridgeExecutor
@@ -14,6 +14,7 @@ import com.rakuten.tech.mobile.miniapp.permission.CustomPermissionBridgeDispatch
 import com.rakuten.tech.mobile.miniapp.permission.MiniAppCustomPermission
 import com.rakuten.tech.mobile.miniapp.permission.MiniAppCustomPermissionCache
 import com.rakuten.tech.mobile.miniapp.permission.MiniAppCustomPermissionType
+import com.rakuten.tech.mobile.miniapp.storage.DownloadedManifestCache
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -21,9 +22,11 @@ import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mockito.`when`
 
+@Suppress("LongMethod")
 @RunWith(AndroidJUnit4::class)
 class MiniAppCustomPermissionWindowSpec {
     private lateinit var permissionCache: MiniAppCustomPermissionCache
+    private lateinit var downloadedManifestCache: DownloadedManifestCache
     private lateinit var dispatcher: CustomPermissionBridgeDispatcher
     private val bridgeExecutor: MiniAppBridgeExecutor = mock()
     private val mockSharedPrefs: SharedPreferences = mock()
@@ -48,12 +51,19 @@ class MiniAppCustomPermissionWindowSpec {
         `when`(mockEditor.putString(anyString(), anyString())).thenReturn(mockEditor)
 
         permissionCache = MiniAppCustomPermissionCache(mockContext)
+        downloadedManifestCache = DownloadedManifestCache(mockContext)
         cachedCustomPermission = permissionCache.readPermissions(miniAppId)
 
         ActivityScenario.launch(TestActivity::class.java).onActivity {
             activity = it
             dispatcher =
-                CustomPermissionBridgeDispatcher(bridgeExecutor, permissionCache, miniAppId, "")
+                CustomPermissionBridgeDispatcher(
+                    bridgeExecutor,
+                    permissionCache,
+                    downloadedManifestCache,
+                    miniAppId,
+                    ""
+                )
             permissionWindow = spy(MiniAppCustomPermissionWindow(activity, dispatcher))
         }
     }

@@ -28,11 +28,11 @@ Add the following to your `build.gradle` file:
 
 ```groovy
 repositories {
-    jcenter()
+    mavenCentral()
 }
 
 dependency {
-    implementation 'com.rakuten.tech.mobile.miniapp:miniapp:${version}'
+    implementation 'io.github.rakutentech.miniapp:miniapp:${version}'
 }
 ```
 
@@ -92,7 +92,9 @@ The SDK is configured via `meta-data` tags in your `AndroidManifest.xml`. The fo
 ### #3 Create and display a Mini App
 **API Docs:** [MiniApp.create](api/com.rakuten.tech.mobile.miniapp/-mini-app/create.html), [MiniAppDisplay](api/com.rakuten.tech.mobile.miniapp/-mini-app-display/), [MiniAppMessageBridge](api/com.rakuten.tech.mobile.miniapp.js/-mini-app-message-bridge)
 
-`MiniApp.create` is used to create a `View` for displaying a specific mini app. You must provide the mini app ID which you wish to create (you can get the mini app ID by [Fetching Mini App Info](#fetching-mini-app-info) first). Calling `MiniApp.create` will do the following:
+`MiniApp.create` is used to create a `View` for displaying a specific mini app. Before calling `MiniApp.create`, the Host App should first get the manifest using `MiniApp.getMiniAppManifest`, show permission prompt to user, then set the result with `MiniApp.setCustomPermissions`.
+If Host App wants to launch/download the miniapp without granting the required permissions, the SDK will throw `RequiredPermissionsNotGrantedException` to notify Host App.
+You must provide the mini app ID which you wish to create (you can get the mini app ID by [Fetching Mini App Info](#fetching-mini-app-info) first). Calling `MiniApp.create` will do the following:
 
 - Check what is the latest, published version of the mini app.
 - Check if the latest version of the mini app has been downloaded.
@@ -100,7 +102,7 @@ The SDK is configured via `meta-data` tags in your `AndroidManifest.xml`. The fo
     - If no, download the latest version and then return the downloaded version.
 - If the device is disconnected from the internet and the device already has a version of the mini app downloaded, then the already downloaded version will be returned.
 
-After calling `MiniApp.create`, you will obtain an instance of `MiniAppDisplay` which represents the downloaded mini app. You can call `MiniAppDisplay.getMiniAppView` to obtain a `View` for displaying the mini app.
+After calling `MiniApp.create` and all the "required" manifest permissions have been granted, you will obtain an instance of `MiniAppDisplay` which represents the downloaded mini app. You can call `MiniAppDisplay.getMiniAppView` to obtain a `View` for displaying the mini app.
 
 The following is a simplified example:
 
@@ -215,7 +217,15 @@ The `UserInfoBridgeDispatcher`:
 | getAccessToken               | 🚫       |
 | getContacts                  | 🚫       |
 
-The sections below explain each feature in more detail. 
+The `ChatBridgeDispatcher`:
+
+| Method                       | Default  |
+|------------------------------|----------|
+| sendMessageToContact         | 🚫       |
+| sendMessageToContactId       | 🚫       |
+| sendMessageToMultipleContacts| 🚫       |
+
+The sections below explain each feature in more detail.
 
 The following is a full code example of using `MiniAppMessageBridge`.
 
@@ -294,11 +304,12 @@ val userInfoBridgeDispatcher = object : UserInfoBridgeDispatcher {
 
     override fun getAccessToken(
         miniAppId: String,
+        accessTokenScope: AccessTokenScope,
         onSuccess: (tokenData: TokenData) -> Unit,
         onError: (message: String) -> Unit
     ) {
         var allowToken: Boolean = false
-        // Check if you want to allow this Mini App ID to use the Access Token
+        // Check if you want to allow this Mini App ID to use the Access Token based on AccessTokenScope.
         // .. .. ..
         if (allowToken)
             onSuccess(tokenData) // allow miniapp to get token and return TokenData value.
@@ -321,6 +332,65 @@ val userInfoBridgeDispatcher = object : UserInfoBridgeDispatcher {
 
 // set UserInfoBridgeDispatcher object to miniAppMessageBridge
 miniAppMessageBridge.setUserInfoBridgeDispatcher(userInfoBridgeDispatcher)
+
+val chatBridgeDispatcher = object : ChatBridgeDispatcher {
+
+    override fun sendMessageToContact(
+        message: MessageToContact,
+        onSuccess: (contactId: String?) -> Unit,
+        onError: (message: String) -> Unit
+    ) {
+        // Check if there is any contact in HostApp
+        // .. .. ..
+        if (hasContact) {
+            // You can show a contact selection UI for picking a single contact.
+            // .. .. ..
+            // allow miniapp to invoke after message has been sent,
+            // user can invoke null when cancelling the operation.
+            onSuccess(contactId)
+        }
+        else
+            onError(message) // reject miniapp to send message with message explanation.
+    }
+
+    override fun sendMessageToContactId(
+        contactId: String,
+        message: MessageToContact,
+        onSuccess: (contactId: String?) -> Unit,
+        onError: (message: String) -> Unit
+    ) {
+        if (there is contact id) {
+            // You can show a UI with the message content and the contactId.
+            // .. .. ..
+            // allow miniapp to invoke after message has been sent,
+            // user can invoke null when cancelling the operation.
+            onSuccess(contactId)
+        }
+        else
+            onError(message) // reject miniapp to send message with message explanation.
+    }
+
+    override fun sendMessageToMultipleContacts(
+        message: MessageToContact,
+        onSuccess: (contactIds: List<String>?) -> Unit,
+        onError: (message: String) -> Unit
+    ) {
+        // Check if there is any contact in HostApp
+        // .. .. ..
+        if (hasContact) {
+            // You can show a contact selection UI for picking a single contact.
+            // .. .. ..
+            // allow miniapp to invoke the contact ids where message has been sent,
+            // user can invoke null when cancelling the operation.
+            onSuccess(contactIds)
+        }
+        else
+            onError(message) // reject miniapp to send message with message explanation.
+    }
+}
+
+// set ChatBridgeDispatcher object to miniAppMessageBridge
+miniAppMessageBridge.setChatBridgeDispatcher(chatBridgeDispatcher)
 ```
 </details>
 
@@ -365,8 +435,7 @@ The following user data types are supported. If your App does not support a cert
 
 - User name: string representing the user's name. See [UserInfoBridgeDispatcher.getUserName](api/com.rakuten.tech.mobile.miniapp.js.userinfo/-user-info-bridge-dispatcher/get-user-name.html)
 - Profile photo: URL pointing to a photo. This can also be a Base64 data string. See [UserInfoBridgeDispatcher.getProfilePhoto](api/com.rakuten.tech.mobile.miniapp.js.userinfo/-user-info-bridge-dispatcher/get-profile-photo.html)
-- Access Token (does not currenlty have a custom permission type): OAuth 1.0 token including token data and expiration date. Your App will be provided with the ID of the mini app which is requesting the Access Token, so you should verify that this mini app is allowed to use the access token. See See [UserInfoBridgeDispatcher.getAccessToken](api/com.rakuten.tech.mobile.miniapp.js.userinfo/-user-info-bridge-dispatcher/get-access-token.html)
-
+- Access Token: OAuth 1.0 token including token data and expiration date. Your App will be provided with the ID of the mini app and [AccessTokenScope]((api/com.rakuten.tech.mobile.miniapp.permission/-access-token-scope)) which is requesting the Access Token, so you should verify that this mini app is allowed to use the access token. See [UserInfoBridgeDispatcher.getAccessToken](api/com.rakuten.tech.mobile.miniapp.js.userinfo/-user-info-bridge-dispatcher/get-access-token.html)
 
 ### Ads Integration
 **API Docs:** [MiniAppMessageBridge.setAdMobDisplayer](api/com.rakuten.tech.mobile.miniapp.js/-mini-app-message-bridge/set-ad-mob-displayer.html)
@@ -498,6 +567,27 @@ CoroutineScope(Dispatchers.IO).launch {
 }
 ```
 
+## Getting downloaded Mini App Meta data
+
+In Host App, we can get the downloaded manifest information as following:
+
+```kotlin
+  val downloadedManifest = MiniApp.instance().getDownloadedManifest("MINI_APP_ID")
+```
+
+## Send message to contacts
+**API Docs:** [ChatBridgeDispatcher](api/com.rakuten.tech.mobile.miniapp.js.chat/-chat-bridge-dispatcher/)
+
+Send a message to a single contact, multiple contacts or to a specific contact id by using the following three methods can be triggered by the Mini App, and here are the recommended behaviors for each one:
+| |[ChatBridgeDispatcher.sendMessageToContact](api/com.rakuten.tech.mobile.miniapp.js.chat/-chat-bridge-dispatcher/send-message-to-contact.html)|[ChatBridgeDispatcher.sendMessageToContactId](api/com.rakuten.tech.mobile.miniapp.js.chat/-chat-bridge-dispatcher/send-message-to-contact-id.html)|[ChatBridgeDispatcher.sendMessageToMultipleContacts](api/com.rakuten.tech.mobile.miniapp.js.chat/-chat-bridge-dispatcher/send-message-to-multiple-contacts.html)|
+|---|---|---|---|
+|**Triggered when**|Mini App wants to send a message to a contact.|Triggered when Mini App wants to send a message to a specific contact.|Triggered when Mini App wants to send a message to multiple contacts. |
+| **Contact chooser needed** | single contact | None | multiple contacts |
+| **Action** | send the message to the chosen contact | send a message to the specific contact id without any prompt to the user | send the message to multiple chosen contacts |
+| **On success** | invoke onSuccess with the ID of the contact where the message was sent. | invoke onSuccess with the ID of the contact where the message was sent. | invoke onSuccess with a list of IDs of the contacts where the message was sent. |
+| **On cancellation** | invoke onSuccess null value. | invoke onSuccess null value. | invoke onSuccess null value. |
+| **On error** | invoke onError when there was an error. | invoke onError when there was an error. | invoke onError when there was an error. |
+
 ## Advanced Features
 
 ### Clearing up mini app display
@@ -610,6 +700,54 @@ mini app scheme and should close external webview.
 
 Using `#ExternalResultHandler.emitResult(String)` to transmit the url string to mini app view.
 
+### File choosing
+**API Docs:** [MiniAppFileChooser](api/com.rakuten.tech.mobile.miniapp.file/-mini-app-file-chooser/)
+
+The mini app is able to choose the file which is requested using HTML forms with 'file' input type whenever users press a "Select file" button.
+HostApp can use a default class provided by the SDK e.g. `MiniAppFileChooserDefault` to choose the files.
+- At first, HostApp needs to initiate `MiniAppFileChooserDefault` in the `Activity`.
+
+```kotlin
+val fileChoosingReqCode = REQUEST_CODE // define a request code in HostApp
+val miniAppFileChooser = MiniAppFileChooserDefault(requestCode = fileChoosingReqCode)
+```
+
+- Then, HostApp activity can receive the files at `onActivityResult` as following:
+
+```kotlin
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+
+    // HostApp can cancel the file choosing operation when resultCode doesn't match
+    if (Activity.RESULT_OK != resultCode) {
+         miniAppFileChooser.onCancel()
+    }
+
+    if (requestCode == fileChoosingReqCode && resultCode == Activity.RESULT_OK) {
+        data?.let { intent ->
+            miniAppFileChooser.onReceivedFiles(intent)
+        }
+    }
+}
+```
+
+Alternatively, HostApp can use `MiniAppFileChooser` interface to override `onShowFileChooser` for customizing file choosing mode and other options.
+
+```kotlin
+val miniAppFileChooser = object : MiniAppFileChooser {
+
+        override fun onShowFileChooser(
+            filePathCallback: ValueCallback<Array<Uri>>?,
+            fileChooserParams: WebChromeClient.FileChooserParams?,
+            context: Context
+        ): Boolean {
+           // write own implementation here.
+        }
+    }
+```
+
+In both case, HostApp needs to pass `MiniAppFileChooser` through `MiniApp.create(appId: String, miniAppMessageBridge: MiniAppMessageBridge, miniAppFileChooser: MiniAppFileChooser)`.
+
 ### Custom Permissions
 **API Docs:** [MiniApp.getCustomPermissions](api/com.rakuten.tech.mobile.miniapp/-mini-app/get-custom-permissions.html), [MiniApp.setCustomPermissions](api/com.rakuten.tech.mobile.miniapp/-mini-app/set-custom-permissions.html), [MiniApp.listDownloadedWithCustomPermissions](api/com.rakuten.tech.mobile.miniapp/-mini-app/list-downloaded-with-custom-permissions.html)
 
@@ -695,11 +833,30 @@ CoroutineScope(Dispatchers.Main).launch {
 </details>
 
 <details><summary markdown="span"><b>Exception: MiniAppVerificationException</b>
-
 </summary>
 
 This exception will be thrown when the SDK cannot verify the security check on local storage using keystore which means that users are not allowed to use miniapp.
-Some keystores within devices are tampered or OEM were shipped with broken keystore from the beginning. 
+Some keystores within devices are tampered or OEM were shipped with broken keystore from the beginning.
+
+</details>
+
+<details><summary markdown="span"><b>Build Error: `java.lang.RuntimeException: Duplicate class com.rakuten.tech.mobile.manifestconfig.annotations.ManifestConfig`</b>
+</summary>
+
+This build error could occur if you are using older versions of other libraries from `com.rakuten.tech.mobile`.
+Some of the dependencies in this SDK have changed to a new Group ID of `io.github.rakutentech` (due to the [JCenter shutdown](https://jfrog.com/blog/into-the-sunset-bintray-jcenter-gocenter-and-chartcenter/)).
+This means that if you have another library in your project which depends on the older dependencies using the Gropu ID `com.rakuten.tech.mobile`, then you will have duplicate classes.
+
+To avoid this, please add the following to your `build.gradle` in order to exclude the old `com.rakuten.tech.mobile` dependencies from your project.
+
+```groovy
+configurations.all {
+    exclude group: 'com.rakuten.tech.mobile', module: 'manifest-config-processor'
+    exclude group: 'com.rakuten.tech.mobile', module: 'manifest-config-annotations'
+    exclude group: 'com.rakuten.tech.mobile.sdkutils', module: 'sdk-utils'
+}
+
+```
 
 </details>
 
@@ -710,13 +867,56 @@ We may periodically publish snapshot versions for testing pre-release features. 
 
 ```
 repositories {
-    maven { url 'http://oss.jfrog.org/artifactory/simple/libs-snapshot/' }
+    maven { url 'https://s01.oss.sonatype.org/content/repositories/snapshots/' }
 }
 
 dependency {
-    implementation 'com.rakuten.tech.mobile.miniapp:miniapp:X.X.X-SNAPSHOT'
+    implementation 'io.github.rakutentech.miniapp:miniapp:X.X.X-SNAPSHOT'
 }
 ```
+</details>
+
+<details><summary markdown="span"><b>How do I deep link to mini apps?</b>
+</summary>
+
+If you want to have deep links direclty to your mini apps, then you must implement deep link handling within your App. This can be done using either a custom deep link scheme (such as `myAppName://miniapp`) or an [App Link](https://developer.android.com/training/app-links) (such as `https://www.example.com/miniapp`). See the following Android Developer resources for more information on how to implement deep linking capabilities:
+
+- [Create Deep Links to App Content](https://developer.android.com/training/app-links/deep-linking)
+- [Handling App Links](https://developer.android.com/training/app-links)
+- [Verify Android App Links](https://developer.android.com/training/app-links/verify-site-associations)
+
+After you have implemented deep linking capabilities in your App, then you can configure your deep link to open and launch a Mini App. Note that your deep link should contain information about which mini app ID to open. Also, you can pass query parameters and a URL fragment to the mini app. The recommended deep link format is similar to `https://www.example.com/miniapp/MINI_APP_ID?myParam=myValue#myFragment` where the `myParam=myValue#myFragment` portion is optional and will be passed directly to the mini app. 
+
+The following is an example which will parse the mini app ID and query string from a deep link intent:
+
+```kotlin
+// In your main Activity
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    setContentView(R.layout.main)
+
+    val action: String? = intent?.action
+    val uri: Uri? = intent?.data
+    
+    if (action == Intent.ACTION_VIEW && uri != null) {
+        handleDeepLink(uri)
+    }
+}
+
+fun handleDeepLink(uri: Uri) {
+    if (uri.path?.startsWith("/miniapp") == true && uri.lastPathSegment != null) {
+        val miniAppId = uri.lastPathSegment
+        val queryParams = uri.query ?: ""
+        val queryFragment = uri.fragment ?: ""
+        val query = "$queryParams#$queryFragment"
+
+        // Note that `MyMiniAppDisplayScreen` is just a placeholder example for your own class
+        // Inside this class you should call `MiniApp.create` in order to create and display the mini app
+        MyMiniAppDisplayScreen.launch(miniAppId, query)
+    }
+}
+```
+
 </details>
 
 <details><summary markdown="span"><b>How can I use this SDK in a Java project?</b>

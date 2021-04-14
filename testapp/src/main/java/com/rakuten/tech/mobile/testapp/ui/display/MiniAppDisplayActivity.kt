@@ -10,24 +10,26 @@ import android.view.MenuItem
 import android.view.View
 import android.webkit.WebView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.rakuten.tech.mobile.miniapp.MiniAppInfo
 import com.rakuten.tech.mobile.miniapp.ads.AdMobDisplayer
+import com.rakuten.tech.mobile.miniapp.file.MiniAppFileChooserDefault
+import com.rakuten.tech.mobile.miniapp.js.MessageToContact
 import com.rakuten.tech.mobile.miniapp.js.MiniAppMessageBridge
-import com.rakuten.tech.mobile.miniapp.js.userinfo.Contact
-import com.rakuten.tech.mobile.miniapp.js.userinfo.TokenData
-import com.rakuten.tech.mobile.miniapp.js.userinfo.UserInfoBridgeDispatcher
+import com.rakuten.tech.mobile.miniapp.js.chat.ChatBridgeDispatcher
+import com.rakuten.tech.mobile.miniapp.js.userinfo.*
 import com.rakuten.tech.mobile.miniapp.navigator.ExternalResultHandler
 import com.rakuten.tech.mobile.miniapp.navigator.MiniAppNavigator
+import com.rakuten.tech.mobile.miniapp.permission.AccessTokenScope
 import com.rakuten.tech.mobile.miniapp.permission.MiniAppDevicePermissionType
 import com.rakuten.tech.mobile.miniapp.testapp.R
 import com.rakuten.tech.mobile.miniapp.testapp.databinding.MiniAppDisplayActivityBinding
 import com.rakuten.tech.mobile.testapp.helper.AppPermission
 import com.rakuten.tech.mobile.testapp.ui.base.BaseActivity
+import com.rakuten.tech.mobile.testapp.ui.chat.ChatWindow
 import com.rakuten.tech.mobile.testapp.ui.settings.AppSettings
 import java.util.*
 
@@ -40,6 +42,8 @@ class MiniAppDisplayActivity : BaseActivity() {
     private lateinit var binding: MiniAppDisplayActivityBinding
 
     private val externalWebViewReqCode = 100
+    private val fileChoosingReqCode = 10101
+    private val miniAppFileChooser = MiniAppFileChooserDefault(requestCode = fileChoosingReqCode)
 
     companion object {
         private val appIdTag = "app_id_tag"
@@ -93,11 +97,11 @@ class MiniAppDisplayActivity : BaseActivity() {
         viewModel = ViewModelProvider.NewInstanceFactory()
             .create(MiniAppDisplayViewModel::class.java).apply {
 
-                setHostLifeCycle(lifecycle)
                 miniAppView.observe(this@MiniAppDisplayActivity, Observer {
                     if (ApplicationInfo.FLAG_DEBUGGABLE == 2)
                         WebView.setWebContentsDebuggingEnabled(true)
                     //action: display webview
+                    addLifeCycleObserver(lifecycle)
                     setContentView(it)
                 })
 
@@ -127,6 +131,7 @@ class MiniAppDisplayActivity : BaseActivity() {
                 appUrl,
                 miniAppMessageBridge,
                 miniAppNavigator,
+                miniAppFileChooser,
                 AppSettings.instance.urlParameters
             )
         } else
@@ -136,11 +141,13 @@ class MiniAppDisplayActivity : BaseActivity() {
                 appId!!,
                 miniAppMessageBridge,
                 miniAppNavigator,
+                miniAppFileChooser,
                 AppSettings.instance.urlParameters
             )
     }
 
     private fun setupMiniAppMessageBridge() {
+        // setup MiniAppMessageBridge
         miniAppMessageBridge = object : MiniAppMessageBridge() {
             override fun getUniqueId() = AppSettings.instance.uniqueId
 
@@ -160,6 +167,7 @@ class MiniAppDisplayActivity : BaseActivity() {
         miniAppMessageBridge.setAdMobDisplayer(AdMobDisplayer(this@MiniAppDisplayActivity))
         miniAppMessageBridge.allowScreenOrientation(true)
 
+        // setup UserInfoBridgeDispatcher
         val userInfoBridgeDispatcher = object : UserInfoBridgeDispatcher {
 
             override fun getUserName(
@@ -181,39 +189,54 @@ class MiniAppDisplayActivity : BaseActivity() {
             }
 
             override fun getAccessToken(
-                miniAppId: String,
-                onSuccess: (tokenData: TokenData) -> Unit,
-                onError: (message: String) -> Unit
-            ) {
-                AlertDialog.Builder(this@MiniAppDisplayActivity)
-                    .setMessage("Allow $miniAppId to get access token?")
-                    .setPositiveButton(android.R.string.yes) { dialog, _ ->
-                        onSuccess(AppSettings.instance.tokenData)
-                        dialog.dismiss()
-                    }
-                    .setNegativeButton("No") { dialog, _ ->
-                        onError("$miniAppId not allowed to get access token")
-                        dialog.dismiss()
-                    }
-                    .create()
-                    .show()
-            }
+                    miniAppId: String,
+                    accessTokenScope: AccessTokenScope,
+                    onSuccess: (tokenData: TokenData) -> Unit,
+                    onError: (message: String) -> Unit
+            ) = onSuccess(AppSettings.instance.tokenData)
 
             override fun getContacts(
                 onSuccess: (contacts: ArrayList<Contact>) -> Unit,
                 onError: (message: String) -> Unit
             ) {
-                val hasContact = AppSettings.instance.isContactsSaved
-                if (hasContact) {
-                    val contacts: ArrayList<Contact> = arrayListOf()
-                    AppSettings.instance.contactNames.forEach {
-                        contacts.add(Contact(it))
-                    }
-                    onSuccess(contacts)
-                } else onError("There is no contact found in HostApp.")
+                if (AppSettings.instance.isContactsSaved)
+                    onSuccess(AppSettings.instance.contacts)
+                else
+                    onError("There is no contact found in HostApp.")
             }
         }
         miniAppMessageBridge.setUserInfoBridgeDispatcher(userInfoBridgeDispatcher)
+
+        // setup ChatBridgeDispatcher
+        val chatWindow = ChatWindow(this@MiniAppDisplayActivity)
+        val chatBridgeDispatcher = object : ChatBridgeDispatcher {
+
+            override fun sendMessageToContact(
+                message: MessageToContact,
+                onSuccess: (contactId: String?) -> Unit,
+                onError: (message: String) -> Unit
+            ) {
+                chatWindow.openSingleContactSelection(message, onSuccess, onError)
+            }
+
+            override fun sendMessageToContactId(
+                contactId: String,
+                message: MessageToContact,
+                onSuccess: (contactId: String?) -> Unit,
+                onError: (message: String) -> Unit
+            ) {
+                chatWindow.openSpecificContactIdSelection(contactId, message, onSuccess, onError)
+            }
+
+            override fun sendMessageToMultipleContacts(
+                message: MessageToContact,
+                onSuccess: (contactIds: List<String>?) -> Unit,
+                onError: (message: String) -> Unit
+            ) {
+                chatWindow.openMultipleContactSelections(message, onSuccess, onError)
+            }
+        }
+        miniAppMessageBridge.setChatBridgeDispatcher(chatBridgeDispatcher)
     }
 
     override fun onRequestPermissionsResult(
@@ -228,8 +251,17 @@ class MiniAppDisplayActivity : BaseActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+
+        if (Activity.RESULT_OK != resultCode) {
+            miniAppFileChooser.onCancel()
+        }
+
         if (requestCode == externalWebViewReqCode && resultCode == Activity.RESULT_OK) {
             data?.let { intent -> sampleWebViewExternalResultHandler.emitResult(intent) }
+        } else if (requestCode == fileChoosingReqCode && resultCode == Activity.RESULT_OK) {
+            data?.let { intent ->
+                miniAppFileChooser.onReceivedFiles(intent)
+            }
         }
     }
 

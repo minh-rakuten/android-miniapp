@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.lifecycle.LifecycleObserver
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.nhaarman.mockitokotlin2.mock
+import org.mockito.kotlin.mock
 import com.rakuten.tech.mobile.miniapp.*
 import com.rakuten.tech.mobile.miniapp.TEST_HA_NAME
 import com.rakuten.tech.mobile.miniapp.TEST_MA
@@ -48,7 +48,9 @@ class DisplayerSpec {
             miniAppInfo = TEST_MA,
             miniAppMessageBridge = miniAppMessageBridge,
             miniAppNavigator = mock(),
+            miniAppFileChooser = mock(),
             miniAppCustomPermissionCache = mock(),
+            downloadedManifestCache = mock(),
             queryParams = TEST_URL_PARAMS
         )
 
@@ -56,7 +58,9 @@ class DisplayerSpec {
         appUrl = TEST_MA_URL,
         miniAppMessageBridge = miniAppMessageBridge,
         miniAppNavigator = mock(),
+        miniAppFileChooser = mock(),
         miniAppCustomPermissionCache = mock(),
+        downloadedManifestCache = mock(),
         queryParams = TEST_URL_PARAMS
     )
 }

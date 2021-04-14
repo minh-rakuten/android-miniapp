@@ -3,9 +3,9 @@ package com.rakuten.tech.mobile.miniapp.js
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.gson.Gson
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.times
-import com.nhaarman.mockitokotlin2.verify
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 import com.rakuten.tech.mobile.miniapp.*
 import com.rakuten.tech.mobile.miniapp.TEST_AD_UNIT_ID
 import com.rakuten.tech.mobile.miniapp.TEST_CALLBACK_ID
@@ -100,6 +100,7 @@ class MiniAppMessageBridgeSpec : BridgeCommon() {
             activity = TestActivity(),
             webViewListener = webViewListener,
             customPermissionCache = mock(),
+            downloadedManifestCache = mock(),
             miniAppId = TEST_MA_ID
         )
     }
@@ -123,6 +124,7 @@ class MiniAppMessageBridgeSpec : BridgeCommon() {
             activity = TestActivity(),
             webViewListener = webViewListener,
             customPermissionCache = mock(),
+            downloadedManifestCache = mock(),
             miniAppId = TEST_MA_ID
         )
 
@@ -141,6 +143,7 @@ class MiniAppMessageBridgeSpec : BridgeCommon() {
             activity = TestActivity(),
             webViewListener = webViewListener,
             customPermissionCache = mock(),
+            downloadedManifestCache = mock(),
             miniAppId = TEST_MA_ID
         )
 
@@ -176,6 +179,7 @@ class MiniAppMessageBridgeSpec : BridgeCommon() {
             activity = TestActivity(),
             webViewListener = webViewListener,
             customPermissionCache = mock(),
+            downloadedManifestCache = mock(),
             miniAppId = TEST_MA_ID
         )
         miniAppBridge.postMessage(uniqueIdJsonStr)
@@ -220,6 +224,7 @@ class ShareContentBridgeSpec : BridgeCommon() {
             activity = TestActivity(),
             webViewListener = webViewListener,
             customPermissionCache = mock(),
+            downloadedManifestCache = mock(),
             miniAppId = TEST_MA_ID
         )
     }
@@ -245,6 +250,7 @@ class ShareContentBridgeSpec : BridgeCommon() {
                 activity = activity,
                 webViewListener = webViewListener,
                 customPermissionCache = mock(),
+                downloadedManifestCache = mock(),
                 miniAppId = TEST_MA_ID
             )
             miniAppBridge.postMessage(shareContentJsonStr)
@@ -264,6 +270,7 @@ class ShareContentBridgeSpec : BridgeCommon() {
             activity = TestActivity(),
             webViewListener = webViewListener,
             customPermissionCache = mock(),
+            downloadedManifestCache = mock(),
             miniAppId = TEST_MA_ID
         )
         miniAppBridge.postMessage(shareContentJsonStr)
@@ -313,6 +320,7 @@ class AdBridgeSpec : BridgeCommon() {
             activity = TestActivity(),
             webViewListener = webViewListener,
             customPermissionCache = mock(),
+            downloadedManifestCache = mock(),
             miniAppId = TEST_MA_ID
         )
         miniAppBridge.setAdMobDisplayer(TestAdMobDisplayer())
@@ -371,6 +379,7 @@ class ScreenBridgeSpec : BridgeCommon() {
             activity = TestActivity(),
             webViewListener = webViewListener,
             customPermissionCache = mock(),
+            downloadedManifestCache = mock(),
             miniAppId = TEST_MA_ID
         )
     }
@@ -383,17 +392,13 @@ class ScreenBridgeSpec : BridgeCommon() {
         )
     )
 
+    @Suppress("LongMethod")
     @Test
     fun `postValue should be called when screen action is executed successfully`() {
         ActivityScenario.launch(TestActivity::class.java).onActivity { activity ->
             val miniAppBridge = Mockito.spy(createDefaultMiniAppMessageBridge())
             When calling miniAppBridge.createBridgeExecutor(webViewListener) itReturns bridgeExecutor
-            miniAppBridge.init(
-                activity = activity,
-                webViewListener = webViewListener,
-                customPermissionCache = mock(),
-                miniAppId = TEST_MA_ID
-            )
+            miniAppBridge.init(activity, webViewListener, mock(), mock(), TEST_MA_ID)
             miniAppBridge.allowScreenOrientation(true)
             miniAppBridge.postMessage(createCallbackJsonStr(ScreenOrientation.LOCK_PORTRAIT))
             miniAppBridge.postMessage(createCallbackJsonStr(ScreenOrientation.LOCK_LANDSCAPE))
